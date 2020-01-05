@@ -25,15 +25,14 @@
                    :title-args `(:visible-min-width (:character ,game-title-width))
                    :file-completion t
                    :directories-only t
-                   :editing-callback
-                   (lambda (pane type)
-                     (when (eql type :start)
-                       (text-input-pane-complete-text pane))))
+                   :buttons '(:ok nil
+                              :browse-file (:directory t)))
    (game-save-glob text-input-pane
                    :title "Game Save Glob"
                    :title-args `(:visible-min-width (:character ,game-title-width)))
    (save-button push-button :data "Add" :visible-min-width `(:character ,button-width)))
-  (:layouts (main-layout column-layout '(games-layout game-edit-layout))
+  (:layouts
+   (main-layout column-layout '(games-layout game-edit-layout))
    (games-layout row-layout '(game-list list-buttons))
    (game-edit-layout column-layout
                      '(game-name
@@ -42,3 +41,6 @@
                        save-button)
                      :adjust :right))
   (:default-initargs :title "Save Backup"))
+
+(defun start ()
+  (display (make-instance 'window)))
