@@ -5,5 +5,5 @@
   :version "0.0.1"
   :serial t
   :pathname "./src/"
-  :depends-on (:travv0.prelude)
+  :depends-on (:travv0.prelude :cl-fad :cl-ppcre)
   :components ((:file "sbu-gui")))
