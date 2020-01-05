@@ -8,7 +8,8 @@
    (button-width :initarg :button-width :initform 12)
    (games :initarg :games
           :initform (make-hash-table :test 'equal)
-          :reader games))
+          :reader games)
+   (last-selected-id :initform 0))
   (:panes
    (list-buttons push-button-panel
                  :items '(:backup :remove)
@@ -32,7 +33,8 @@
               :test-function 'equal
               :visible-min-width '(:character 40)
               :visible-min-height '(:character 10)
-              :selection-callback 'select-game)
+              :selection-callback 'select-game
+              :retract-callback 'reselect-game)
    (game-name text-input-pane
               :title "Game Name"
               :title-args `(:visible-min-width (:character ,game-title-width)))
@@ -46,10 +48,10 @@
    (game-save-glob text-input-pane
                    :title "Game Save Glob"
                    :title-args `(:visible-min-width (:character ,game-title-width)))
-   (save-button push-button :data "Add"
+   (save-button push-button :data "Save"
                             :visible-min-width `(:character ,button-width)
                             :callback-type :interface
-                            :callback 'add-game))
+                            :callback 'save-game))
   (:layouts
    (main-layout column-layout '(games-layout game-edit-layout))
    (games-layout row-layout '(game-list list-buttons))
@@ -61,41 +63,27 @@
                      :adjust :right))
   (:default-initargs :title "Save Backup"))
 
-(defun add-game (interface)
-  (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
-         ((:accessors (game-name text-input-pane-text)) game-name)
-         ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob))
-    (setf (gethash game-name games) `(:save-path ,game-save-path
-                                      :save-glob ,game-save-glob)
-          (collection-items (slot-value interface 'game-list)) games
-          game-name ""
-          game-save-path ""
-          game-save-glob "")))
-
 (defun select-game (data interface)
-  (bind (((:slots games game-list game-name game-save-path game-save-glob save-button)
+  (bind (((:slots games game-list game-name game-save-path game-save-glob save-button last-selected-id)
           interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
          ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
-         ((:accessors (button-callback callbacks-selection-callback)
-                      (button-text item-data))
-          save-button)
          ((:plist save-path save-glob) (gethash data games)))
-    (if (string= data "New...")
-        (setf game-name ""
-              game-save-path ""
-              game-save-glob ""
-              button-callback 'add-game
-              button-text "Add")
-        (setf game-name data
-              game-save-path save-path
-              game-save-glob save-glob
-              button-callback 'edit-game
-              button-text "Save"))))
+    (cond ((string= data "New...") (setf game-name ""
+                                         game-save-path ""
+                                         game-save-glob ""
+                                         last-selected-id 0))
+          (t (setf game-name data
+                   game-save-path save-path
+                   game-save-glob save-glob
+                   last-selected-id (choice-selection game-list))))))
 
-(defun edit-game (interface)
+(defun reselect-game (data interface)
+  (bind (((:slots game-list last-selected-id) interface))
+    (setf (choice-selection game-list) last-selected-id)))
+
+(defun save-game (interface)
   (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
