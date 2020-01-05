@@ -8,8 +8,7 @@
    (button-width :initarg :button-width :initform 12)
    (games :initarg :games
           :initform (make-hash-table :test 'equal)
-          :reader games)
-   (last-selected-id :initform 0))
+          :reader games))
   (:panes
    (list-buttons push-button-panel
                  :items '(:backup :remove)
@@ -64,7 +63,7 @@
   (:default-initargs :title "Save Backup"))
 
 (defun select-game (data interface)
-  (bind (((:slots games game-list game-name game-save-path game-save-glob save-button last-selected-id)
+  (bind (((:slots games game-list game-name game-save-path game-save-glob)
           interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
@@ -72,16 +71,22 @@
          ((:plist save-path save-glob) (gethash data games)))
     (cond ((string= data "New...") (setf game-name ""
                                          game-save-path ""
-                                         game-save-glob ""
-                                         last-selected-id 0))
+                                         game-save-glob ""))
           (t (setf game-name data
                    game-save-path save-path
-                   game-save-glob save-glob
-                   last-selected-id (choice-selection game-list))))))
+                   game-save-glob save-glob)))))
 
 (defun reselect-game (data interface)
-  (bind (((:slots game-list last-selected-id) interface))
-    (setf (choice-selection game-list) last-selected-id)))
+  (bind (((:slots games game-list game-name game-save-path game-save-glob)
+          interface)
+         ((:accessors (game-name text-input-pane-text)) game-name)
+         ((:accessors (game-save-path text-input-pane-text)) game-save-path)
+         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
+         ((:slots game-list) interface))
+    (setf (choice-selection game-list) 0)
+    (setf game-name ""
+          game-save-path ""
+          game-save-glob "")))
 
 (defun save-game (interface)
   (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
