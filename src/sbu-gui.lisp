@@ -11,12 +11,12 @@
           :reader games))
   (:panes
    (list-buttons push-button-panel
-                 :items '(:backup :remove)
-                 :default-button :backup
-                 :print-function 'string-capitalize
-                 :layout-class 'column-layout
-                 :layout-args `(:visible-min-width (:character ,button-width))
-                 :callbacks (list 'backup 'remove-game))
+                 :items '(:|backup all| :backup :remove)
+                 :default-button :|backup all|
+                                 :print-function 'string-capitalize
+                                 :layout-class 'column-layout
+                                 :layout-args `(:visible-min-width (:character ,button-width))
+                                 :callbacks (list 'backup-all 'backup 'remove-game))
    (game-list list-panel
               :items games
               :items-map-function (lambda (ht f cr)
@@ -150,6 +150,11 @@
          (selected-game-name (get-collection-item game-list selected-id))
          ((:accessors (game-list collection-items)) game-list))
     (backup-game (assoc selected-game-name (hash-table-alist games)))))
+
+(defun backup-all (_data interface)
+  (->> (games interface)
+       hash-table-alist
+       (mapcar 'backup-game)))
 
 (defun backup-game ((game-name . (&key save-path save-regex)))
   (cl-fad:walk-directory save-path
