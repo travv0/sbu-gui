@@ -167,7 +167,8 @@
     (cond ((path:-e to) (when (/= (file-write-date from) (file-write-date to))
                           (multiple-value-bind (sec min hour day month year)
                               (decode-universal-time (file-write-date to) 0)
-                            (rename-file to (format nil "~a.bak.~4d_~2d_~2d_~2d_~2d_~2d"
+                            (rename-file to (format nil
+                                                    "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
                                                     to year month day hour min sec)))
                           (ensure-directories-exist (path:dirname to))
                           (cl-fad:copy-file from to)))
