@@ -169,13 +169,11 @@
   (bind ((backup-path (path:catdir *backup-path* (cl-fad:pathname-as-directory game-name)))
          (relative-save-path (subseq (namestring from) (length (namestring save-path))))
          (to (path:catfile backup-path relative-save-path)))
-    (cond ((path:-e to) (when (/= (file-write-date from) (file-write-date to))
-                          (multiple-value-bind (sec min hour day month year)
-                              (decode-universal-time (file-write-date to) 0)
-                            (rename-file to (format nil
-                                                    "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
-                                                    to year month day hour min sec)))
-                          (ensure-directories-exist (path:dirname to))
-                          (cl-fad:copy-file from to)))
-          (t (ensure-directories-exist (path:dirname to))
-             (cl-fad:copy-file from to)))))
+    (multiple-value-bind (sec min hour day month year)
+        (decode-universal-time (file-write-date from) 0)
+      (bind ((full-to (format nil
+                              "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
+                              to year month day hour min sec)))
+        (unless (probe-file full-to)
+          (ensure-directories-exist (path:dirname full-to))
+          (cl-fad:copy-file from full-to))))))
