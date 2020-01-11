@@ -63,8 +63,7 @@
   (:default-initargs :title "Save Backup"))
 
 (defun select-game (data interface)
-  (bind (((:slots games game-list game-name game-save-path game-save-regex)
-          interface)
+  (bind (((:slots games game-name game-save-path game-save-regex) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
          ((:accessors (game-save-regex text-input-pane-text)) game-save-regex)
@@ -76,9 +75,8 @@
                    game-save-path save-path
                    game-save-regex save-regex)))))
 
-(defun reselect-game (data interface)
-  (bind (((:slots games game-list game-name game-save-path game-save-regex)
-          interface)
+(desfun reselect-game (_data interface)
+  (bind (((:slots game-name game-save-path game-save-regex) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
          ((:accessors (game-save-regex text-input-pane-text)) game-save-regex)
@@ -105,7 +103,7 @@
           game-save-regex "")
     (save-games games)))
 
-(defun remove-game (_data interface)
+(desfun remove-game (_data interface)
   (bind (((:slots games game-list game-name game-save-path game-save-regex) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
@@ -141,22 +139,18 @@
 
 (defparameter *backup-path* "~/.sbu-backups/")
 
-(defun backup (_data interface)
-  (bind (((:slots games game-list game-name game-save-path game-save-regex) interface)
-         ((:accessors (game-name text-input-pane-text)) game-name)
-         ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-regex text-input-pane-text)) game-save-regex)
+(desfun backup (_data interface)
+  (bind (((:slots games game-list) interface)
          (selected-id (choice-selection game-list))
-         (selected-game-name (get-collection-item game-list selected-id))
-         ((:accessors (game-list collection-items)) game-list))
+         (selected-game-name (get-collection-item game-list selected-id)))
     (backup-game (assoc selected-game-name (hash-table-alist games)))))
 
-(defun backup-all (_data interface)
+(desfun backup-all (_data interface)
   (->> (games interface)
        hash-table-alist
        (mapcar 'backup-game)))
 
-(defun backup-game ((game-name . (&key save-path save-regex)))
+(desfun backup-game ((game-name . (&key save-path save-regex)))
   (cl-fad:walk-directory save-path
                          (curry 'backup-file game-name save-path)
                          :directories :depth-first
