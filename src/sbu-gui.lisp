@@ -44,9 +44,9 @@
                    :directories-only t
                    :buttons '(:ok nil
                               :browse-file (:directory t)))
-   (game-save-regex text-input-pane
-                    :title "Game Save Regex"
-                    :title-args `(:visible-min-width (:character ,game-title-width)))
+   (game-save-glob text-input-pane
+                   :title "Game Save Glob"
+                   :title-args `(:visible-min-width (:character ,game-title-width)))
    (save-button push-button :data "Save"
                             :visible-min-width `(:character ,button-width)
                             :callback-type :interface
@@ -57,57 +57,57 @@
    (game-edit-layout column-layout
                      '(game-name
                        game-save-path
-                       game-save-regex
+                       game-save-glob
                        save-button)
                      :adjust :right))
   (:default-initargs :title "Save Backup"))
 
 (defun select-game (data interface)
-  (bind (((:slots games game-name game-save-path game-save-regex) interface)
+  (bind (((:slots games game-name game-save-path game-save-glob) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-regex text-input-pane-text)) game-save-regex)
-         ((:plist save-path save-regex) (gethash data games)))
+         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
+         ((:plist save-path save-glob) (gethash data games)))
     (cond ((string= data "New...") (setf game-name ""
                                          game-save-path ""
-                                         game-save-regex ""))
+                                         game-save-glob ""))
           (t (setf game-name data
                    game-save-path save-path
-                   game-save-regex save-regex)))))
+                   game-save-glob save-glob)))))
 
 (desfun reselect-game (_data interface)
-  (bind (((:slots game-name game-save-path game-save-regex) interface)
+  (bind (((:slots game-name game-save-path game-save-glob) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-regex text-input-pane-text)) game-save-regex)
+         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
          ((:slots game-list) interface))
     (setf (choice-selection game-list) 0)
     (setf game-name ""
           game-save-path ""
-          game-save-regex "")))
+          game-save-glob "")))
 
 (defun save-game (interface)
-  (bind (((:slots games game-list game-name game-save-path game-save-regex) interface)
+  (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-regex text-input-pane-text)) game-save-regex)
+         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
          (selected-id (choice-selection game-list))
          (selected-game-name (get-collection-item game-list selected-id))
          ((:accessors (game-list collection-items)) game-list))
     (remhash selected-game-name games)
     (setf (gethash game-name games) `(:save-path ,game-save-path
-                                      :save-regex ,game-save-regex)
+                                      :save-glob ,game-save-glob)
           game-list games
           game-name ""
           game-save-path ""
-          game-save-regex "")
+          game-save-glob "")
     (save-games games)))
 
 (desfun remove-game (_data interface)
-  (bind (((:slots games game-list game-name game-save-path game-save-regex) interface)
+  (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-regex text-input-pane-text)) game-save-regex)
+         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
          (selected-id (choice-selection game-list))
          (selected-game-name (get-collection-item game-list selected-id))
          ((:accessors (game-list collection-items)) game-list))
@@ -115,7 +115,7 @@
     (setf game-list games
           game-name ""
           game-save-path ""
-          game-save-regex "")
+          game-save-glob "")
     (save-games games)))
 
 (defparameter *games-path* "~/.sbugames")
@@ -150,14 +150,18 @@
        hash-table-alist
        (mapcar 'backup-game)))
 
-(desfun backup-game ((game-name . (&key save-path save-regex)))
+(desfun backup-game ((game-name . (&key save-path save-glob)))
   (cl-fad:walk-directory save-path
                          (curry 'backup-file game-name save-path)
                          :directories :depth-first
                          :test (lambda (file)
                                  (and (not (cl-fad:directory-pathname-p file))
-                                      (cl-ppcre:scan (if (string= save-regex "") ".*" save-regex)
-                                                     (file-namestring file))))))
+                                      (pathname-match-p (cl-fad:pathname-as-file file)
+                                                        (path:catfile
+                                                         (cl-fad:pathname-as-directory save-path)
+                                                         (if (string= (or save-glob "") "")
+                                                             "**/*"
+                                                             save-glob)))))))
 
 (defun backup-file (game-name save-path from)
   (bind ((backup-path (path:catdir *backup-path* (cl-fad:pathname-as-directory game-name)))
