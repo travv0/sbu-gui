@@ -76,11 +76,10 @@
                    game-save-glob save-glob)))))
 
 (desfun reselect-game (_data interface)
-  (bind (((:slots game-name game-save-path game-save-glob) interface)
+  (bind (((:slots game-name game-save-path game-save-glob game-list) interface)
          ((:accessors (game-name text-input-pane-text)) game-name)
          ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
-         ((:slots game-list) interface))
+         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob))
     (setf (choice-selection game-list) 0)
     (setf game-name ""
           game-save-path ""
