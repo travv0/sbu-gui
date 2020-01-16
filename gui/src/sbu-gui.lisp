@@ -1,9 +1,9 @@
-(defpackage :sbu-gui
+(defpackage :sbu/gui
   (:use #:cl #:alexandria #:serapeum)
   (:import-from :metabang-bind #:bind)
   (:export #:start))
 
-(in-package :sbu-gui)
+(in-package :sbu/gui)
 
 (capi:define-interface window ()
   ((game-title-width :initarg :game-title-width :initform 17)
@@ -77,7 +77,8 @@
                    game-save-path save-path
                    game-save-glob save-glob)))))
 
-(tu:desfun reselect-game (_data interface)
+(defun reselect-game (data interface)
+  (declare (ignore data))
   (bind (((:slots game-name game-save-path game-save-glob game-list) interface)
          ((:accessors (game-name capi:text-input-pane-text)) game-name)
          ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
@@ -95,16 +96,14 @@
          (selected-id (capi:choice-selection game-list))
          (selected-game-name (capi:get-collection-item game-list selected-id))
          ((:accessors (game-list capi:collection-items)) game-list))
-    (remhash selected-game-name games)
-    (setf (gethash game-name games) `(:save-path ,game-save-path
-                                      :save-glob ,game-save-glob)
-          game-list games
+    (sbu:save-game games selected-game-name game-save-path game-save-glob)
+    (setf game-list games
           game-name ""
           game-save-path ""
-          game-save-glob "")
-    (save-games games)))
+          game-save-glob "")))
 
-(tu:desfun remove-game (_data interface)
+(defun remove-game (data interface)
+  (declare (ignore data))
   (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
          ((:accessors (game-name capi:text-input-pane-text)) game-name)
          ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
@@ -112,67 +111,24 @@
          (selected-id (capi:choice-selection game-list))
          (selected-game-name (capi:get-collection-item game-list selected-id))
          ((:accessors (game-list capi:collection-items)) game-list))
-    (remhash selected-game-name games)
+    (sbu:remove-game games selected-game-name)
     (setf game-list games
           game-name ""
           game-save-path ""
-          game-save-glob "")
-    (save-games games)))
-
-(defparameter *games-path* "~/.sbugames")
-
-(defun save-games (games)
-  (with-open-file (out *games-path*
-                       :direction :output
-                       :if-exists :supersede)
-    (with-standard-io-syntax
-      (pprint (hash-table-alist games) out))))
-
-(defun load-games ()
-  (if (probe-file *games-path*)
-      (with-open-file (in *games-path*)
-        (with-standard-io-syntax
-          (alist-hash-table (read in) :test 'equal)))
-      (make-hash-table :test 'equal)))
+          game-save-glob "")))
 
 (defun start ()
-  (capi:display (make-instance 'window :games (load-games))))
+  (capi:display (make-instance 'window :games (sbu:load-games))))
 
 (defparameter *backup-path* "~/.sbu-backups/")
 
-(tu:desfun backup (_data interface)
+(defun backup (data interface)
+  (declare (ignore data))
   (bind (((:slots games game-list) interface)
          (selected-id (capi:choice-selection game-list))
          (selected-game-name (capi:get-collection-item game-list selected-id)))
-    (backup-game (assoc selected-game-name (hash-table-alist games)))))
+    (sbu:backup-game (assoc selected-game-name (hash-table-alist games)))))
 
-(tu:desfun backup-all (_data interface)
-  (~>> (games interface)
-       hash-table-alist
-       (mapcar 'backup-game)))
-
-(tu:desfun backup-game ((game-name . (&key save-path save-glob)))
-  (cl-fad:walk-directory save-path
-                         (curry 'backup-file game-name save-path)
-                         :directories :depth-first
-                         :test (op
-                                 (and (not (cl-fad:directory-pathname-p _1))
-                                      (pathname-match-p (cl-fad:pathname-as-file _1)
-                                                        (path:catfile
-                                                         (cl-fad:pathname-as-directory save-path)
-                                                         (if (string= (or save-glob "") "")
-                                                             "**/*"
-                                                             save-glob)))))))
-
-(defun backup-file (game-name save-path from)
-  (bind ((backup-path (path:catdir *backup-path* (cl-fad:pathname-as-directory game-name)))
-         (relative-save-path (subseq (namestring from) (length (namestring save-path))))
-         (to (path:catfile backup-path relative-save-path)))
-    (multiple-value-bind (sec min hour day month year)
-        (decode-universal-time (file-write-date from) 0)
-      (bind ((full-to (format nil
-                              "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
-                              to year month day hour min sec)))
-        (unless (probe-file full-to)
-          (ensure-directories-exist (path:dirname full-to))
-          (cl-fad:copy-file from full-to))))))
+(defun backup-all (data interface)
+  (declare (ignore data))
+  (sbu:backup-all (games interface)))
