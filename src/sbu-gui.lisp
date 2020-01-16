@@ -1,23 +1,25 @@
 (defpackage :sbu-gui
-  (:use #:travv0.prelude #:capi))
+  (:use #:cl #:alexandria #:serapeum)
+  (:import-from :metabang-bind #:bind)
+  (:export #:start))
 
 (in-package :sbu-gui)
 
-(define-interface window ()
+(capi:define-interface window ()
   ((game-title-width :initarg :game-title-width :initform 17)
    (button-width :initarg :button-width :initform 12)
    (games :initarg :games
           :initform (make-hash-table :test 'equal)
           :reader games))
   (:panes
-   (list-buttons push-button-panel
+   (list-buttons capi:push-button-panel
                  :items '(:|backup all| :backup :remove)
                  :default-button :|backup all|
                                  :print-function 'string-capitalize
-                                 :layout-class 'column-layout
+                                 :layout-class 'capi:column-layout
                                  :layout-args `(:visible-min-width (:character ,button-width))
                                  :callbacks (list 'backup-all 'backup 'remove-game))
-   (game-list list-panel
+   (game-list capi:list-panel
               :items games
               :items-map-function (lambda (ht f cr)
                                     (funcall (if cr #'mapcar #'mapc)
@@ -34,27 +36,27 @@
               :visible-min-height '(:character 10)
               :selection-callback 'select-game
               :retract-callback 'reselect-game)
-   (game-name text-input-pane
+   (game-name capi:text-input-pane
               :title "Game Name"
               :title-args `(:visible-min-width (:character ,game-title-width)))
-   (game-save-path text-input-pane
+   (game-save-path capi:text-input-pane
                    :title "Game Save Path"
                    :title-args `(:visible-min-width (:character ,game-title-width))
                    :file-completion t
                    :directories-only t
                    :buttons '(:ok nil
                               :browse-file (:directory t)))
-   (game-save-glob text-input-pane
+   (game-save-glob capi:text-input-pane
                    :title "Game Save Glob"
                    :title-args `(:visible-min-width (:character ,game-title-width)))
-   (save-button push-button :data "Save"
-                            :visible-min-width `(:character ,button-width)
-                            :callback-type :interface
-                            :callback 'save-game))
+   (save-button capi:push-button :data "Save"
+                                 :visible-min-width `(:character ,button-width)
+                                 :callback-type :interface
+                                 :callback 'save-game))
   (:layouts
-   (main-layout column-layout '(games-layout game-edit-layout))
-   (games-layout row-layout '(game-list list-buttons))
-   (game-edit-layout column-layout
+   (main-layout capi:column-layout '(games-layout game-edit-layout))
+   (games-layout capi:row-layout '(game-list list-buttons))
+   (game-edit-layout capi:column-layout
                      '(game-name
                        game-save-path
                        game-save-glob
@@ -64,9 +66,9 @@
 
 (defun select-game (data interface)
   (bind (((:slots games game-name game-save-path game-save-glob) interface)
-         ((:accessors (game-name text-input-pane-text)) game-name)
-         ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
+         ((:accessors (game-name capi:text-input-pane-text)) game-name)
+         ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
+         ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob)
          ((:plist save-path save-glob) (gethash data games)))
     (cond ((string= data "New...") (setf game-name ""
                                          game-save-path ""
@@ -75,25 +77,25 @@
                    game-save-path save-path
                    game-save-glob save-glob)))))
 
-(desfun reselect-game (_data interface)
+(tu:desfun reselect-game (_data interface)
   (bind (((:slots game-name game-save-path game-save-glob) interface)
-         ((:accessors (game-name text-input-pane-text)) game-name)
-         ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
+         ((:accessors (game-name capi:text-input-pane-text)) game-name)
+         ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
+         ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob)
          ((:slots game-list) interface))
-    (setf (choice-selection game-list) 0)
+    (setf (capi:choice-selection game-list) 0)
     (setf game-name ""
           game-save-path ""
           game-save-glob "")))
 
 (defun save-game (interface)
   (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
-         ((:accessors (game-name text-input-pane-text)) game-name)
-         ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
-         (selected-id (choice-selection game-list))
-         (selected-game-name (get-collection-item game-list selected-id))
-         ((:accessors (game-list collection-items)) game-list))
+         ((:accessors (game-name capi:text-input-pane-text)) game-name)
+         ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
+         ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob)
+         (selected-id (capi:choice-selection game-list))
+         (selected-game-name (capi:get-collection-item game-list selected-id))
+         ((:accessors (game-list capi:collection-items)) game-list))
     (remhash selected-game-name games)
     (setf (gethash game-name games) `(:save-path ,game-save-path
                                       :save-glob ,game-save-glob)
@@ -103,14 +105,14 @@
           game-save-glob "")
     (save-games games)))
 
-(desfun remove-game (_data interface)
+(tu:desfun remove-game (_data interface)
   (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
-         ((:accessors (game-name text-input-pane-text)) game-name)
-         ((:accessors (game-save-path text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-glob text-input-pane-text)) game-save-glob)
-         (selected-id (choice-selection game-list))
-         (selected-game-name (get-collection-item game-list selected-id))
-         ((:accessors (game-list collection-items)) game-list))
+         ((:accessors (game-name capi:text-input-pane-text)) game-name)
+         ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
+         ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob)
+         (selected-id (capi:choice-selection game-list))
+         (selected-game-name (capi:get-collection-item game-list selected-id))
+         ((:accessors (game-list capi:collection-items)) game-list))
     (remhash selected-game-name games)
     (setf game-list games
           game-name ""
@@ -135,22 +137,22 @@
       (make-hash-table :test 'equal)))
 
 (defun start ()
-  (display (make-instance 'window :games (load-games))))
+  (capi:display (make-instance 'window :games (load-games))))
 
 (defparameter *backup-path* "~/.sbu-backups/")
 
-(desfun backup (_data interface)
+(tu:desfun backup (_data interface)
   (bind (((:slots games game-list) interface)
-         (selected-id (choice-selection game-list))
-         (selected-game-name (get-collection-item game-list selected-id)))
+         (selected-id (capi:choice-selection game-list))
+         (selected-game-name (capi:get-collection-item game-list selected-id)))
     (backup-game (assoc selected-game-name (hash-table-alist games)))))
 
-(desfun backup-all (_data interface)
-  (->> (games interface)
+(tu:desfun backup-all (_data interface)
+  (~>> (games interface)
        hash-table-alist
        (mapcar 'backup-game)))
 
-(desfun backup-game ((game-name . (&key save-path save-glob)))
+(tu:desfun backup-game ((game-name . (&key save-path save-glob)))
   (cl-fad:walk-directory save-path
                          (curry 'backup-file game-name save-path)
                          :directories :depth-first
