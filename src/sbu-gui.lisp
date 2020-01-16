@@ -155,9 +155,9 @@
   (cl-fad:walk-directory save-path
                          (curry 'backup-file game-name save-path)
                          :directories :depth-first
-                         :test (lambda (file)
-                                 (and (not (cl-fad:directory-pathname-p file))
-                                      (pathname-match-p (cl-fad:pathname-as-file file)
+                         :test (op
+                                 (and (not (cl-fad:directory-pathname-p _1))
+                                      (pathname-match-p (cl-fad:pathname-as-file _1)
                                                         (path:catfile
                                                          (cl-fad:pathname-as-directory save-path)
                                                          (if (string= (or save-glob "") "")
