@@ -78,13 +78,12 @@
                    game-save-glob save-glob)))))
 
 (tu:desfun reselect-game (_data interface)
-  (bind (((:slots game-name game-save-path game-save-glob) interface)
+  (bind (((:slots game-name game-save-path game-save-glob game-list) interface)
          ((:accessors (game-name capi:text-input-pane-text)) game-name)
          ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob)
-         ((:slots game-list) interface))
-    (setf (capi:choice-selection game-list) 0)
-    (setf game-name ""
+         ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob))
+    (setf (capi:choice-selection game-list) 0
+          game-name ""
           game-save-path ""
           game-save-glob "")))
 
