@@ -100,7 +100,7 @@
           (sbu:backup-all games)
           (~>> games
                hash-table-alist
-               (remove-if-not (op (position (car _) free-args)))
+               (remove-if-not (op (position (car _) free-args :test 'equal)))
                (mapcar #'sbu:backup-game)))
       (unless (getf options :loop)
         (return)))))
