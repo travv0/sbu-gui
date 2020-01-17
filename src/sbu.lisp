@@ -48,12 +48,13 @@
                            :directories :depth-first
                            :follow-symlinks nil
                            :test (lambda (file)
-                                   (pathname-match-p (cl-fad:pathname-as-file file)
-                                                     (path:catfile
-                                                      (cl-fad:pathname-as-directory save-path)
-                                                      (if (string= (or save-glob "") "")
-                                                          "**/*"
-                                                          save-glob)))))
+                                   (and (not (cl-fad:directory-pathname-p file))
+                                        (pathname-match-p (cl-fad:pathname-as-file file)
+                                                          (path:catfile
+                                                           (cl-fad:pathname-as-directory save-path)
+                                                           (if (string= (or save-glob "") "")
+                                                               "**/*"
+                                                               save-glob))))))
     (bind ((end-time (get-internal-real-time))
            ((:values second minute hour date month year day-of-week _ tz)
             (get-decoded-time)))

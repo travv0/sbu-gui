@@ -172,6 +172,8 @@ Returns T if command exists, NIL otherwise."
     (error (condition)
       (format *error-output* "Error: ~a" condition))))
 
+(defparameter *backup-frequency* 15)
+
 (defun backup (options free-args)
   (let ((games (sbu:load-games)))
     (loop
@@ -184,7 +186,8 @@ Returns T if command exists, NIL otherwise."
                                             :test 'equal)))
                (mapcar #'sbu:backup-game)))
       (unless (getf options :loop)
-        (return)))))
+        (return))
+      (sleep (* 60 *backup-frequency*)))))
 
 (defun add (options free-args)
   (let* ((games (sbu:load-games))
