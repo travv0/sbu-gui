@@ -7,8 +7,16 @@
 
 (in-package :sbu/cli)
 
-(defparameter *commands* (dict))
+(defparameter *commands* (dict)
+  "Hash table of sub-commands added with the `define-command' macro.")
 (defmacro define-command ((command-name function &optional description) &body opts)
+  "Define a sub-command with its own command line arguments.
+
+This macro takes a `command-name' as a string, a `function' that should take 2
+arguments - the options and free arguments returned by `opts:get-opts' - and an optional
+`description' of the command to be shown on the help screen.  The body of this macro
+should be plists that `opts:define-opts' would accept, or strings naming the
+free arguments this command accepts."
   (bind (((:values free-args opts-descriptions) (partition #'stringp opts)))
     `(setf (@ *commands* ,command-name)
            (list :function ,function
@@ -100,8 +108,13 @@
 ;;      :meta-var "BACKUPS_TO_KEEP")))
 
 (defun describe-commands (&key prefix suffix usage-of)
-  (format t "~@[~a~%~]" prefix)
-  (format t "~@[~%Usage: ~a COMMAND~%~]" usage-of)
+  "Print the help screen showing which commands are available.
+
+`prefix' will be printed before the list of available commands.
+`suffix' will be printed after the list of available commands.
+`usage-of' take the name of the application and uses it to show
+how the commands are used."
+  (format t "~@[~a~%~]~@[~%Usage: ~a COMMAND~%~]" prefix usage-of)
   (~>> *commands*
        hash-table-alist
        (sort _ #'string-lessp :key #'car)
@@ -110,7 +123,11 @@
   (format t "~@[~%~a~%~%~]" suffix))
 
 (defun set-opts (command)
-  (funcall (getf (@ *commands* command) :make-opts)))
+  "Set the accepted command line arguments to those relevant to `command'.
+Returns T if command exists, NIL otherwise."
+  (when-let ((opts-function (getf (@ *commands* command) :make-opts)))
+    (funcall opts-function)
+    t))
 
 (defun get-command-function (command)
   (getf (@ *commands* command) :function))
@@ -118,26 +135,34 @@
 (defun get-command-free-args (command)
   (getf (@ *commands* command) :free-args))
 
-(defun main (&optional args)
+(defun help-flag-p (args)
+  (or (position "-h" args :test 'string=)
+      (position "--help" args :test 'string=)))
+
+(defun handle-command (command args &optional application-name)
+  (if (set-opts command)
+      (if (help-flag-p args)
+          (opts:describe :usage-of (when application-name
+                                     (format nil "~a ~a" application-name command))
+                         :args (get-command-free-args command))
+          (handler-case
+              (bind ((command-function (get-command-function command))
+                     ((:values options free-args) (when args (opts:get-opts args))))
+                (funcall command-function options free-args))
+            (error (condition)
+              (opts:describe :usage-of (when application-name
+                                         (format nil "~a ~a" application-name command))
+                             :args (get-command-free-args command)
+                             :prefix (format nil "Error: ~a" condition)))))
+      (describe-commands :usage-of application-name)))
+
+(defun main (&rest args)
   (let ((args (or (and args (cons nil args))
                   (tu:get-command-line-args))))
-    (if (> (length args) 1)
+    (if (= 1 (length args))
+        (describe-commands :usage-of "sbu")
         (bind (((_ subcommand . opts) args))
-          (set-opts subcommand)
-          (if (or (position "-h" opts :test 'string=)
-                  (position "--help" opts :test 'string=))
-              (opts:describe :usage-of (format nil "sbu ~a" subcommand)
-                             :args (get-command-free-args subcommand))
-              (handler-case
-                  (bind ((command-function (get-command-function subcommand))
-                         ((:values options free-args) (when opts (opts:get-opts opts))))
-                    (funcall command-function options free-args))
-                (error (condition)
-                  (opts:describe :usage-of (format nil "sbu ~a" subcommand)
-                                 :args (get-command-free-args subcommand)
-                                 :prefix (format nil "Error: ~a" condition))
-                  (opts:exit 1)))))
-        (describe-commands :usage-of "sbu"))))
+          (handle-command subcommand opts "sbu")))))
 
 (defun backup (options free-args)
   (let ((games (sbu:load-games)))
@@ -190,7 +215,8 @@
 (defun remove-games (options free-args)
   (let* ((games (sbu:load-games))
          (existing-game-names (hash-table-keys games))
-         (game-names (remove-if-not (op (position _ existing-game-names :test #'string=))
+         (game-names (remove-if-not (op (position _ existing-game-names
+                                                  :test #'string=))
                                     free-args)))
     (cond ((null game-names)
            (error "~[No games provided to remove.~;Games don't exist: ~{~a~^, ~}~]"
@@ -212,7 +238,9 @@
          (old-game-name (first free-args))
          (old-game (@ games old-game-name))
          (new-game-name (or (getf options :name) old-game-name)))
-    (cond ((not old-game) (error "~a doesn't exist.  Use `add' command to add it." old-game-name))
+    (cond ((not old-game-name) (error "Name of game to edit not provided."))
+          ((not old-game) (error "~a doesn't exist.  Use `add' command to add it."
+                                 old-game-name))
           ((null free-args) (error "Name of game to edit not provided."))
           ((> (length free-args) 1)
            (error "Too many arguments provided.  Extra arguments: ~{~a~^, ~}"

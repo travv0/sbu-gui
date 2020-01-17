@@ -47,7 +47,8 @@
                                                              save-glob)))))))
 
 (defun backup-file (game-name save-path from)
-  (bind ((backup-path (path:catdir *backup-path* (cl-fad:pathname-as-directory game-name)))
+  (bind ((save-path (cl-fad:pathname-as-directory save-path))
+         (backup-path (path:catdir *backup-path* (cl-fad:pathname-as-directory game-name)))
          (relative-save-path (subseq (namestring from) (length (namestring save-path))))
          (to (path:catfile backup-path relative-save-path))
          ((:values sec min hour day month year) (decode-universal-time (file-write-date from) 0))
@@ -56,7 +57,9 @@
                           to year month day hour min sec)))
     (unless (probe-file full-to)
       (ensure-directories-exist (path:dirname full-to))
-      (cl-fad:copy-file from full-to))))
+      (cl-fad:copy-file from to :overwrite t)
+      (cl-fad:copy-file to full-to)
+      (format t "~a ==>~%~4t~a~%" from to))))
 
 (defun save-game (games game-name game-save-path game-save-glob &optional old-game-name)
   (remhash old-game-name games)

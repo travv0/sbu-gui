@@ -10,5 +10,6 @@
 (deliver 'sbu/cli:main
          "~/bin/sbu"
          5
+         :startup-bitmap-file nil
          :keep-pretty-printer t
          :keep-lisp-reader t)
