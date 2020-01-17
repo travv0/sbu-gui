@@ -46,14 +46,14 @@
     (cl-fad:walk-directory save-path
                            (curry 'backup-file game-name save-path)
                            :directories :depth-first
+                           :follow-symlinks nil
                            :test (lambda (file)
-                                   (and (not (cl-fad:directory-pathname-p file))
-                                        (pathname-match-p (cl-fad:pathname-as-file file)
-                                                          (path:catfile
-                                                           (cl-fad:pathname-as-directory save-path)
-                                                           (if (string= (or save-glob "") "")
-                                                               "**/*"
-                                                               save-glob))))))
+                                   (pathname-match-p (cl-fad:pathname-as-file file)
+                                                     (path:catfile
+                                                      (cl-fad:pathname-as-directory save-path)
+                                                      (if (string= (or save-glob "") "")
+                                                          "**/*"
+                                                          save-glob)))))
     (bind ((end-time (get-internal-real-time))
            ((:values second minute hour date month year day-of-week _ tz)
             (get-decoded-time)))
@@ -76,7 +76,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
          (backup-path (path:catdir *backup-path* (cl-fad:pathname-as-directory game-name)))
          (relative-save-path (subseq (namestring from) (length (namestring save-path))))
          (to (path:catfile backup-path relative-save-path))
-         ((:values sec min hour day month year) (decode-universal-time (file-write-date from) 0))
+         ((:values sec min hour day month year) (decode-universal-time (or (file-write-date from) 0) 0))
          (full-to (format nil
                           "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
                           to year month day hour min sec)))
