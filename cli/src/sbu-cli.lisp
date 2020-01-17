@@ -107,6 +107,11 @@ free arguments this command accepts."
 ;;      :arg-parser #'parse-integer
 ;;      :meta-var "BACKUPS_TO_KEEP")))
 
+(define-condition args-error (error)
+  ((error-string :initarg :error-string :reader error-string))
+  (:report (lambda (condition stream)
+             (format stream (error-string condition)))))
+
 (defun describe-commands (&key prefix suffix usage-of)
   "Print the help screen showing which commands are available.
 
@@ -149,7 +154,7 @@ Returns T if command exists, NIL otherwise."
               (bind ((command-function (get-command-function command))
                      ((:values options free-args) (when args (opts:get-opts args))))
                 (funcall command-function options free-args))
-            (error (condition)
+            (args-error (condition)
               (opts:describe :usage-of (when application-name
                                          (format nil "~a ~a" application-name command))
                              :args (get-command-free-args command)
@@ -157,12 +162,15 @@ Returns T if command exists, NIL otherwise."
       (describe-commands :usage-of application-name)))
 
 (defun main (&rest args)
-  (let ((args (or (and args (cons nil args))
-                  (tu:get-command-line-args))))
-    (if (= 1 (length args))
-        (describe-commands :usage-of "sbu")
-        (bind (((_ subcommand . opts) args))
-          (handle-command subcommand opts "sbu")))))
+  (handler-case
+      (let ((args (or (and args (cons nil args))
+                      (tu:get-command-line-args))))
+        (if (= 1 (length args))
+            (describe-commands :usage-of "sbu")
+            (bind (((_ subcommand . opts) args))
+              (handle-command subcommand opts "sbu"))))
+    (error (condition)
+      (format *error-output* "Error: ~a" condition))))
 
 (defun backup (options free-args)
   (let ((games (sbu:load-games)))
@@ -182,10 +190,12 @@ Returns T if command exists, NIL otherwise."
   (let* ((games (sbu:load-games))
          (game-names (hash-table-keys games))
          (game-name (first free-args)))
-    (cond ((null free-args) (error "Name of game to add not provided."))
+    (cond ((null free-args)
+           (error 'args-error :error-string "Name of game to add not provided."))
           ((> (length free-args) 1)
-           (error "Too many arguments provided.  Extra arguments: ~{~a~^, ~}"
-                  (rest free-args)))
+           (error 'args-error
+                  :error-string (format nil "Too many arguments provided.  Extra arguments: ~{~a~^, ~}"
+                                        (rest free-args))))
           ((position game-name game-names :test #'string=)
            (error "Can't add ~a: already exists." game-name))
           (t (sbu:save-game games
@@ -218,10 +228,11 @@ Returns T if command exists, NIL otherwise."
          (game-names (remove-if-not (op (position _ existing-game-names
                                                   :test #'string=))
                                     free-args)))
-    (cond ((null game-names)
-           (error "~[No games provided to remove.~;Games don't exist: ~{~a~^, ~}~]"
-                  (if (null free-args) 0 1)
-                  free-args))
+    (cond ((and (null game-names) (null free-args))
+           (error 'args-error
+                  :error-string "No games provided to remove."))
+          ((and (null game-names) free-args)
+           (error "Games don't exist: ~{~a~^, ~}" free-args))
           ((or (getf options :yes)
                (progn (format t "Are you sure you'd like to remove the following games from sbu?
 ~{~a~^, ~}~%"
@@ -237,20 +248,34 @@ Returns T if command exists, NIL otherwise."
          (game-names (hash-table-keys games))
          (old-game-name (first free-args))
          (old-game (@ games old-game-name))
-         (new-game-name (or (getf options :name) old-game-name)))
-    (cond ((not old-game-name) (error "Name of game to edit not provided."))
+         (old-game-path (getf old-game :save-path))
+         (old-game-glob (getf old-game :save-glob))
+         (new-game-name (or (getf options :name) old-game-name))
+         (new-game-path (getf options :path))
+         (new-game-glob (getf options :glob)))
+    (cond ((not old-game-name) (error 'args-error
+                                      :error-string "Name of game to edit not provided."))
           ((not old-game) (error "~a doesn't exist.  Use `add' command to add it."
                                  old-game-name))
-          ((null free-args) (error "Name of game to edit not provided."))
           ((> (length free-args) 1)
-           (error "Too many arguments provided.  Extra arguments: ~{~a~^, ~}"
-                  (rest free-args)))
+           (error 'args-error
+                  :error-string (format nil
+                                        "Too many arguments provided.  Extra arguments: ~{~a~^, ~}"
+                                        (rest free-args))))
           ((and (string/= old-game-name new-game-name)
                 (position new-game-name game-names :test #'string=))
            (error "Can't rename to ~a: already exists." new-game-name))
+          ((not (or (getf options :name) new-game-path new-game-glob))
+           (error 'args-error
+                  :error-string "At least one of name, path, or glob must be provided"))
           (t (sbu:save-game games
                             new-game-name
-                            (or (getf options :path) (getf old-game :save-path))
-                            (or (getf options :glob) (getf old-game :save-glob) "")
+                            (or new-game-path old-game-path)
+                            (or new-game-glob old-game-glob "")
                             old-game-name)
-             (format t "Updated ~a.~%~%" new-game-name)))))
+             (format t "~@[Name: ~{~a -> ~a~}~%~]~
+~@[Save-Path: ~{~a -> ~a~}~%~]~
+~@[Save-Glob: ~{~a -> ~a~}~%~]~%"
+                     (and (getf options :name) (list old-game-name new-game-name))
+                     (and new-game-path (list old-game-path new-game-path))
+                     (and new-game-glob (list old-game-glob new-game-glob)))))))
