@@ -225,4 +225,4 @@
                             (or (getf options :path) (getf old-game :save-path))
                             (or (getf options :glob) (getf old-game :save-glob) "")
                             old-game-name)
-             (format t "Updated ~a.~%" new-game-name)))))
+             (format t "Updated ~a.~%~%" new-game-name)))))
