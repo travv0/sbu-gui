@@ -96,7 +96,7 @@
          (selected-id (capi:choice-selection game-list))
          (selected-game-name (capi:get-collection-item game-list selected-id))
          ((:accessors (game-list capi:collection-items)) game-list))
-    (sbu:save-game games selected-game-name game-save-path game-save-glob)
+    (sbu:save-game games game-name game-save-path game-save-glob selected-game-name)
     (setf game-list games
           game-name ""
           game-save-path ""

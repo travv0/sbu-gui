@@ -58,8 +58,8 @@
       (ensure-directories-exist (path:dirname full-to))
       (cl-fad:copy-file from full-to))))
 
-(defun save-game (games game-name game-save-path game-save-glob)
-  (remhash game-name games)
+(defun save-game (games game-name game-save-path game-save-glob &optional old-game-name)
+  (remhash old-game-name games)
   (setf (gethash game-name games) `(:save-path ,game-save-path
                                     :save-glob ,game-save-glob))
   (save-games games))
