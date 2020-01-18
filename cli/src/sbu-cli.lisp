@@ -171,9 +171,33 @@ Returns T if command exists, NIL otherwise."
       (describe-commands :usage-of application-name)))
 
 (defun main (&rest args)
+  (opts:define-opts
+    (:name :games-path
+     :description "Path to games configuration file."
+     :short #\g
+     :long "games-path"
+     :arg-parser #'identity
+     :meta-var "GAMES_CONFIG_PATH")
+    (:name :config-path
+     :description "Path to sbu configuration file."
+     :short #\c
+     :long "config-path"
+     :arg-parser #'identity
+     :meta-var "SBU_CONFIG_PATH"))
+
   (handler-case
-      (let* ((args (or (and args (cons nil args))
-                       (tu:get-command-line-args)))
+      (let* ((full-args (or (and args (cons nil args))
+                            (tu:get-command-line-args)))
+             (options (handler-bind ((opts:unknown-option (lambda (c)
+                                                            (declare (ignore c))
+                                                            (invoke-restart 'opts:skip-option))))
+                        (opts:get-opts full-args)))
+             (games-path (getf options :games-path))
+             (config-path (getf options :config-path))
+             (leading-opts (* 2 (count-if #'identity (list games-path config-path))))
+             (args (drop leading-opts full-args))
+             (sbu:*games-path* (or games-path sbu:*games-path*))
+             (sbu:*config-path* (or config-path sbu:*config-path*))
              (config (sbu:load-config))
              (sbu:*backup-frequency* (or (@ config :backup-frequency)
                                          sbu:*backup-frequency*))
