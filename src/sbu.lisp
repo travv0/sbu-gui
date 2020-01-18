@@ -2,15 +2,25 @@
   (:use #:cl #:alexandria #:serapeum #:metabang-bind)
   (:export #:save-games
            #:load-games
+           #:save-config
+           #:load-config
            #:backup-all
            #:backup-game
            #:save-game
-           #:remove-game))
+           #:remove-game
+           #:*games-path*
+           #:*config-path*
+           #:*backup-path*
+           #:*backup-frequency*
+           #:*backups-to-keep*))
 
 (in-package :sbu)
 
 (defparameter *games-path* "~/.sbugames")
+(defparameter *config-path* "~/.sbuconfig")
 (defparameter *backup-path* "~/.sbu-backups/")
+(defparameter *backup-frequency* 15)
+(defparameter *backups-to-keep* 10)
 
 (defun save-games (games)
   (let ((game-alist (hash-table-alist games)))
@@ -24,6 +34,22 @@
 (defun load-games ()
   (if (probe-file *games-path*)
       (with-open-file (in *games-path*)
+        (with-standard-input-syntax
+          (alist-hash-table (read in) :test 'equal)))
+      (make-hash-table :test 'equal)))
+
+(defun save-config (config)
+  (let ((config-alist (hash-table-alist config)))
+    (with-open-file (out *config-path*
+                         :direction :output
+                         :if-exists :supersede)
+      (with-standard-io-syntax
+        (pprint config-alist out)))
+    config-alist))
+
+(defun load-config ()
+  (if (probe-file *config-path*)
+      (with-open-file (in *config-path*)
         (with-standard-input-syntax
           (alist-hash-table (read in) :test 'equal)))
       (make-hash-table :test 'equal)))

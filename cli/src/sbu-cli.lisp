@@ -86,26 +86,25 @@ free arguments this command accepts."
    :arg-parser #'identity
    :meta-var "NEW_SAVE_FILE_GLOB"))
 
-;; (define-command "config" #'config
-;;   (opts:define-opts
-;;     (:name :path
-;;      :description "Path to directory in which to back up saves"
-;;      :short #\p
-;;      :long "path"
-;;      :arg-parser #'identity
-;;      :meta-var "BACKUP_PATH")
-;;     (:name :frequency
-;;      :description "Frequency in minutes to backup saves when looping"
-;;      :short #\f
-;;      :long "frequency"
-;;      :arg-parser #'parse-integer
-;;      :meta-var "BACKUP_FREQUENCY")
-;;     (:name :keep
-;;      :description "How many copies of each backed-up file to keep"
-;;      :short #\k
-;;      :long "keep"
-;;      :arg-parser #'parse-integer
-;;      :meta-var "BACKUPS_TO_KEEP")))
+(define-command ("config" 'config "Edit sbu configuration.")
+  (:name :path
+   :description "Path to directory in which to back up saves"
+   :short #\p
+   :long "path"
+   :arg-parser #'identity
+   :meta-var "BACKUP_PATH")
+  (:name :frequency
+   :description "Frequency in minutes to backup saves when looping"
+   :short #\f
+   :long "frequency"
+   :arg-parser #'parse-integer
+   :meta-var "BACKUP_FREQUENCY")
+  (:name :keep
+   :description "How many copies of each backed-up file to keep"
+   :short #\k
+   :long "keep"
+   :arg-parser #'parse-integer
+   :meta-var "BACKUPS_TO_KEEP"))
 
 (define-condition general-args-error (opts::troublesome-option)
   ((error-string :initarg :error-string :reader error-string))
@@ -173,16 +172,21 @@ Returns T if command exists, NIL otherwise."
 
 (defun main (&rest args)
   (handler-case
-      (let ((args (or (and args (cons nil args))
-                      (tu:get-command-line-args))))
+      (let* ((args (or (and args (cons nil args))
+                       (tu:get-command-line-args)))
+             (config (sbu:load-config))
+             (sbu:*backup-frequency* (or (@ config :backup-frequency)
+                                         sbu:*backup-frequency*))
+             (sbu:*backup-path* (or (@ config :backup-path)
+                                    sbu:*backup-path*))
+             (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
+                                        sbu:*backups-to-keep*)))
         (if (= 1 (length args))
             (describe-commands :usage-of "sbu")
             (bind (((_ subcommand . opts) args))
               (handle-command subcommand opts "sbu"))))
     (error (condition)
       (format *error-output* "Error: ~a~%~%" condition))))
-
-(defparameter *backup-frequency* 15)
 
 (defun backup (options free-args)
   (let ((games (sbu:load-games)))
@@ -197,7 +201,7 @@ Returns T if command exists, NIL otherwise."
                (mapcar #'sbu:backup-game)))
       (unless (getf options :loop)
         (return))
-      (sleep (* 60 *backup-frequency*)))))
+      (sleep (* 60 sbu:*backup-frequency*)))))
 
 (defun add (options free-args)
   (let* ((games (sbu:load-games))
@@ -285,3 +289,27 @@ Returns T if command exists, NIL otherwise."
                      (and (getf options :name) (list old-game-name new-game-name))
                      (and new-game-path (list old-game-path new-game-path))
                      (and new-game-glob (list old-game-glob new-game-glob)))))))
+
+(defun config (options free-args)
+  (let* ((config (sbu:load-config))
+         (old-backup-path (or (@ config :backup-path)
+                              sbu:*backup-path*))
+         (old-backup-frequency (or (@ config :backup-frequency)
+                                   sbu:*backup-frequency*))
+         (old-backups-to-keep (or (@ config :backups-to-keep)
+                                  sbu:*backups-to-keep*))
+         (new-backup-path (getf options :path))
+         (new-backup-frequency (getf options :frequency))
+         (new-backups-to-keep (getf options :keep)))
+    (cond ((> (length free-args) 0) (error 'extra-free-args :args free-args))
+          (t
+           (when (or new-backup-path new-backup-frequency new-backups-to-keep)
+             (sbu:save-config (dict :backup-path (or new-backup-path old-backup-path)
+                                    :backup-frequency (or new-backup-frequency old-backup-frequency)
+                                    :backups-to-keep (or new-backups-to-keep old-backups-to-keep))))
+           (format t "Backup-Path: ~a~@[ -> ~a~]
+Backup-Frequency: ~a~@[ -> ~a~]
+Backups-To-Keep: ~a~@[ -> ~a~]~%~%"
+                   old-backup-path new-backup-path
+                   old-backup-frequency new-backup-frequency
+                   old-backups-to-keep new-backups-to-keep)))))
