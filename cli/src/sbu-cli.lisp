@@ -88,7 +88,7 @@ free arguments this command accepts."
    :arg-parser #'identity
    :meta-var "NEW_SAVE_FILE_GLOB"))
 
-(define-command ("config" 'config (string+ "Edit " *program-name* " configuration."))
+(define-command ("config" 'config "Edit program configuration.")
   (:name :path
    :description "Path to directory in which to back up saves"
    :short #\p
@@ -175,50 +175,51 @@ Returns T if command exists, NIL otherwise."
       (describe-commands :usage-of application-name)))
 
 (defun main (&rest args)
-  (opts:define-opts
-    (:name :games-path
-     :description "Path to games configuration file."
-     :short #\g
-     :long "games-path"
-     :arg-parser #'identity
-     :meta-var "GAMES_CONFIG_PATH")
-    (:name :config-path
-     :description (string+ "Path to " *program-name* " configuration file.")
-     :short #\c
-     :long "config-path"
-     :arg-parser #'identity
-     :meta-var "PROGRAM_CONFIG_PATH"))
+  (let ((*program-name* (file-namestring (first (tu:get-command-line-args)))))
+    (opts:define-opts
+      (:name :games-path
+       :description "Path to games configuration file."
+       :short #\g
+       :long "games-path"
+       :arg-parser #'identity
+       :meta-var "GAMES_CONFIG_PATH")
+      (:name :config-path
+       :description (string+ "Path to " *program-name* " configuration file.")
+       :short #\c
+       :long "config-path"
+       :arg-parser #'identity
+       :meta-var "PROGRAM_CONFIG_PATH"))
 
-  (handler-case
-      (let* ((full-args (or (and args (cons nil args))
-                            (tu:get-command-line-args)))
-             (options (handler-case
-                          (handler-bind ((opts:unknown-option (lambda (c)
-                                                                (declare (ignore c))
-                                                                (invoke-restart 'opts:skip-option))))
-                            (opts:get-opts full-args))
-                        (opts::troublesome-option (condition)
-                          (describe-commands :usage-of *program-name* :prefix condition)
-                          (return-from main))))
-             (games-path (getf options :games-path))
-             (config-path (getf options :config-path))
-             (leading-opts (* 2 (count-if #'identity (list games-path config-path))))
-             (args (drop leading-opts full-args))
-             (sbu:*games-path* (or games-path sbu:*games-path*))
-             (sbu:*config-path* (or config-path sbu:*config-path*))
-             (config (sbu:load-config))
-             (sbu:*backup-frequency* (or (@ config :backup-frequency)
-                                         sbu:*backup-frequency*))
-             (sbu:*backup-path* (or (@ config :backup-path)
-                                    sbu:*backup-path*))
-             (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
-                                        sbu:*backups-to-keep*)))
-        (if (= 1 (length args))
-            (describe-commands :usage-of "sbu")
-            (bind (((_ subcommand . opts) args))
-              (handle-command subcommand opts "sbu"))))
-    (error (condition)
-      (format *error-output* "Error: ~a~%~%" condition))))
+    (handler-case
+        (let* ((full-args (or (and args (cons nil args))
+                              (tu:get-command-line-args)))
+               (options (handler-case
+                            (handler-bind ((opts:unknown-option (lambda (c)
+                                                                  (declare (ignore c))
+                                                                  (invoke-restart 'opts:skip-option))))
+                              (opts:get-opts full-args))
+                          (opts::troublesome-option (condition)
+                            (describe-commands :usage-of *program-name* :prefix condition)
+                            (return-from main))))
+               (games-path (getf options :games-path))
+               (config-path (getf options :config-path))
+               (leading-opts (* 2 (count-if #'identity (list games-path config-path))))
+               (args (drop leading-opts full-args))
+               (sbu:*games-path* (or games-path sbu:*games-path*))
+               (sbu:*config-path* (or config-path sbu:*config-path*))
+               (config (sbu:load-config))
+               (sbu:*backup-frequency* (or (@ config :backup-frequency)
+                                           sbu:*backup-frequency*))
+               (sbu:*backup-path* (or (@ config :backup-path)
+                                      sbu:*backup-path*))
+               (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
+                                          sbu:*backups-to-keep*)))
+          (if (= 1 (length args))
+              (describe-commands :usage-of *program-name*)
+              (bind (((_ subcommand . opts) args))
+                (handle-command subcommand opts *program-name*))))
+      (error (condition)
+        (format *error-output* "Error: ~a~%~%" condition)))))
 
 (defun backup (options free-args)
   (let ((games (sbu:load-games)))
