@@ -107,10 +107,20 @@ free arguments this command accepts."
 ;;      :arg-parser #'parse-integer
 ;;      :meta-var "BACKUPS_TO_KEEP")))
 
-(define-condition args-error (error)
+(define-condition general-args-error (opts::troublesome-option)
   ((error-string :initarg :error-string :reader error-string))
   (:report (lambda (condition stream)
              (format stream (error-string condition)))))
+
+(define-condition missing-free-args (opts::troublesome-option)
+  ((args :initarg :args :accessor args))
+  (:report (lambda (condition stream)
+             (format stream "missing arguments: ~{~s~^, ~}" (args condition)))))
+
+(define-condition extra-free-args (opts::troublesome-option)
+  ((args :initarg :args :accessor args))
+  (:report (lambda (condition stream)
+             (format stream "extra arguments provided: ~{~s~^, ~}" (args condition)))))
 
 (defun describe-commands (&key prefix suffix usage-of)
   "Print the help screen showing which commands are available.
@@ -154,7 +164,7 @@ Returns T if command exists, NIL otherwise."
               (bind ((command-function (get-command-function command))
                      ((:values options free-args) (when args (opts:get-opts args))))
                 (funcall command-function options free-args))
-            (args-error (condition)
+            (opts::troublesome-option (condition)
               (opts:describe :usage-of (when application-name
                                          (format nil "~a ~a" application-name command))
                              :args (get-command-free-args command)
@@ -170,7 +180,7 @@ Returns T if command exists, NIL otherwise."
             (bind (((_ subcommand . opts) args))
               (handle-command subcommand opts "sbu"))))
     (error (condition)
-      (format *error-output* "Error: ~a" condition))))
+      (format *error-output* "Error: ~a~%~%" condition))))
 
 (defparameter *backup-frequency* 15)
 
@@ -194,11 +204,9 @@ Returns T if command exists, NIL otherwise."
          (game-names (hash-table-keys games))
          (game-name (first free-args)))
     (cond ((null free-args)
-           (error 'args-error :error-string "Name of game to add not provided."))
+           (error 'missing-free-args :args '("GAME")))
           ((> (length free-args) 1)
-           (error 'args-error
-                  :error-string (format nil "Too many arguments provided.  Extra arguments: ~{~a~^, ~}"
-                                        (rest free-args))))
+           (error 'extra-free-args :args (rest free-args)))
           ((position game-name game-names :test #'string=)
            (error "Can't add ~a: already exists." game-name))
           (t (sbu:save-game games
@@ -232,8 +240,7 @@ Returns T if command exists, NIL otherwise."
                                                   :test #'string=))
                                     free-args)))
     (cond ((and (null game-names) (null free-args))
-           (error 'args-error
-                  :error-string "No games provided to remove."))
+           (error 'missing-free-args :args '("GAMES...")))
           ((and (null game-names) free-args)
            (error "Games don't exist: ~{~a~^, ~}" free-args))
           ((or (getf options :yes)
@@ -256,21 +263,17 @@ Returns T if command exists, NIL otherwise."
          (new-game-name (or (getf options :name) old-game-name))
          (new-game-path (getf options :path))
          (new-game-glob (getf options :glob)))
-    (cond ((not old-game-name) (error 'args-error
-                                      :error-string "Name of game to edit not provided."))
+    (cond ((not old-game-name) (error 'missing-free-args :args '("GAME")))
           ((not old-game) (error "~a doesn't exist.  Use `add' command to add it."
                                  old-game-name))
           ((> (length free-args) 1)
-           (error 'args-error
-                  :error-string (format nil
-                                        "Too many arguments provided.  Extra arguments: ~{~a~^, ~}"
-                                        (rest free-args))))
+           (error 'extra-free-args :args (rest free-args)))
           ((and (string/= old-game-name new-game-name)
                 (position new-game-name game-names :test #'string=))
            (error "Can't rename to ~a: already exists." new-game-name))
           ((not (or (getf options :name) new-game-path new-game-glob))
-           (error 'args-error
-                  :error-string "At least one of name, path, or glob must be provided"))
+           (error 'general-args-error
+                  :error-string "at least one of \"--name\", \"--path\", or \"--glob\" must be provided"))
           (t (sbu:save-game games
                             new-game-name
                             (or new-game-path old-game-path)
