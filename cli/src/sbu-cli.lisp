@@ -7,6 +7,8 @@
 
 (in-package :sbu/cli)
 
+(defparameter *program-name* "sbu")
+
 (defparameter *commands* (dict)
   "Hash table of sub-commands added with the `define-command' macro.")
 (defmacro define-command ((command-name function &optional description) &body opts)
@@ -86,7 +88,7 @@ free arguments this command accepts."
    :arg-parser #'identity
    :meta-var "NEW_SAVE_FILE_GLOB"))
 
-(define-command ("config" 'config "Edit sbu configuration.")
+(define-command ("config" 'config (string+ "Edit " *program-name* " configuration."))
   (:name :path
    :description "Path to directory in which to back up saves"
    :short #\p
@@ -181,11 +183,11 @@ Returns T if command exists, NIL otherwise."
      :arg-parser #'identity
      :meta-var "GAMES_CONFIG_PATH")
     (:name :config-path
-     :description "Path to sbu configuration file."
+     :description (string+ "Path to " *program-name* " configuration file.")
      :short #\c
      :long "config-path"
      :arg-parser #'identity
-     :meta-var "SBU_CONFIG_PATH"))
+     :meta-var "PROGRAM_CONFIG_PATH"))
 
   (handler-case
       (let* ((full-args (or (and args (cons nil args))
@@ -196,7 +198,7 @@ Returns T if command exists, NIL otherwise."
                                                                 (invoke-restart 'opts:skip-option))))
                             (opts:get-opts full-args))
                         (opts::troublesome-option (condition)
-                          (describe-commands :usage-of "sbu" :prefix condition)
+                          (describe-commands :usage-of *program-name* :prefix condition)
                           (return-from main))))
              (games-path (getf options :games-path))
              (config-path (getf options :config-path))
@@ -278,9 +280,9 @@ Returns T if command exists, NIL otherwise."
           ((and (null game-names) free-args)
            (error "Games don't exist: ~{~a~^, ~}" free-args))
           ((or (getf options :yes)
-               (progn (format t "Are you sure you'd like to remove the following games from sbu?
+               (progn (format t "Are you sure you'd like to remove the following games from ~a?
 ~{~a~^, ~}~%"
-                              free-args)
+                              *program-name* free-args)
                       (y-or-n-p "(y/n):")))
            (dolist (game free-args)
              (sbu:remove-game games game))
