@@ -111,7 +111,18 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
       (ensure-directories-exist (path:dirname full-to))
       (cl-fad:copy-file from to :overwrite t)
       (cl-fad:copy-file to full-to)
-      (format t "~%~a ==>~%~4t~a" from to))))
+      (format t "~%~a ==>~%~4t~a" from to))
+    (clean-up to)))
+
+(defun clean-up (file-path)
+  (let ((files (directory (string+ file-path ".bak.*_*_*_*_*_*"))))
+    (when (> (length files) *backups-to-keep*)
+      (let ((files-to-delete (drop *backups-to-keep*
+                                   (sort files (lambda (f1 f2)
+                                                 (> (file-write-date f1)
+                                                    (file-write-date f2)))))))
+        (mapcar #'delete-file files-to-delete)
+        (format t "Deleted old backups: ~{~a~%~}~%" files-to-delete)))))
 
 (defun save-game (games game-name game-save-path game-save-glob &optional old-game-name)
   (remhash old-game-name games)
