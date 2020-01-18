@@ -190,10 +190,14 @@ Returns T if command exists, NIL otherwise."
   (handler-case
       (let* ((full-args (or (and args (cons nil args))
                             (tu:get-command-line-args)))
-             (options (handler-bind ((opts:unknown-option (lambda (c)
-                                                            (declare (ignore c))
-                                                            (invoke-restart 'opts:skip-option))))
-                        (opts:get-opts full-args)))
+             (options (handler-case
+                          (handler-bind ((opts:unknown-option (lambda (c)
+                                                                (declare (ignore c))
+                                                                (invoke-restart 'opts:skip-option))))
+                            (opts:get-opts full-args))
+                        (opts::troublesome-option (condition)
+                          (describe-commands :usage-of "sbu" :prefix condition)
+                          (return-from main))))
              (games-path (getf options :games-path))
              (config-path (getf options :config-path))
              (leading-opts (* 2 (count-if #'identity (list games-path config-path))))
