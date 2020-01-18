@@ -122,7 +122,9 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                                                  (> (file-write-date f1)
                                                     (file-write-date f2)))))))
         (mapcar #'delete-file files-to-delete)
-        (format t "Deleted old backups: ~{~a~%~}~%" files-to-delete)))))
+        (format t "~%Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
+                (length files-to-delete)
+                files-to-delete)))))
 
 (defun save-game (games game-name game-save-path game-save-glob &optional old-game-name)
   (remhash old-game-name games)
