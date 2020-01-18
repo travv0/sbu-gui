@@ -128,13 +128,15 @@ free arguments this command accepts."
 `suffix' will be printed after the list of available commands.
 `usage-of' take the name of the application and uses it to show
 how the commands are used."
-  (format t "~@[~a~%~]~@[~%Usage: ~a COMMAND~%~]" prefix usage-of)
-  (~>> *commands*
-       hash-table-alist
-       (sort _ #'string-lessp :key #'car)
-       (mapcar (op (list (car _1) (getf (cdr _1) :description))))
-       (format t "~%Available commands:~%~:{~2t~16a~a~%~}"))
-  (format t "~@[~%~a~%~%~]" suffix))
+  (opts:describe :usage-of usage-of
+                 :args "COMMAND"
+                 :prefix prefix
+                 :suffix (~>> *commands*
+                              hash-table-alist
+                              (sort _ #'string-lessp :key #'car)
+                              (mapcar (op (list (car _1) (getf (cdr _1) :description))))
+                              (format nil "Available commands:~%~:{~2t~16a~a~%~}~%~@[~a~]"
+                                      _ suffix))))
 
 (defun set-opts (command)
   "Set the accepted command line arguments to those relevant to `command'.
