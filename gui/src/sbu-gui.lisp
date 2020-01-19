@@ -156,14 +156,18 @@
 
 (capi:define-interface progress-window ()
   ((game-name :initarg :game-name :initform (error "game name is required"))
-   (file-count :initarg :file-count :initform (error "file count is required")))
+   (file-count :initarg :file-count :initform (error "file count is required"))
+   (width :initarg :width :initform 400))
   (:panes
    (progress-bar capi:progress-bar
                  :start 0
-                 :end file-count)
-   (last-file capi:title-pane))
+                 :end file-count
+                 :min-width width
+                 :max-width width)
+   (last-file capi:title-pane :max-width width))
   (:layouts
-   (main-layout capi:column-layout '(last-file progress-bar))))
+   (main-layout capi:column-layout '(last-file progress-bar)))
+  (:default-initargs :title "Backup Progress"))
 
 (defparameter *completed-message-format* "~a~@[
 
@@ -204,21 +208,27 @@ The following warnings occurred:~%~{~a~%~}~]")
 
 (capi:define-interface multiple-progress-window ()
   ((game-count :initarg :game-count :initform (error "game count is required"))
-   (file-count :initarg :file-count :initform (error "file count is required")))
+   (file-count :initarg :file-count :initform (error "file count is required"))
+   (width :initarg :width :initform 400))
   (:panes
    (file-progress-bar capi:progress-bar
                       :start 0
-                      :end file-count)
+                      :end file-count
+                      :min-width width
+                      :max-width width)
    (game-progress-bar capi:progress-bar
                       :start 0
-                      :end game-count)
-   (last-file capi:title-pane)
-   (last-game capi:title-pane))
+                      :end game-count
+                      :min-width width
+                      :max-width width)
+   (last-file capi:title-pane :max-width width)
+   (last-game capi:title-pane :max-width width))
   (:layouts
    (main-layout capi:column-layout '(last-game
                                      game-progress-bar
                                      last-file
-                                     file-progress-bar))))
+                                     file-progress-bar)))
+  (:default-initargs :title "Backup Progress"))
 
 (defun backup-all (interface)
   (when-let ((games-alist (hash-table-alist (games interface))))
