@@ -169,6 +169,7 @@ Returns T if command exists, NIL otherwise."
                 (handler-bind
                     ((sbu:backup-complete (curry #'format t "~%~a~%~%"))
                      (sbu:file-copied (curry #'format t "~%~a"))
+                     (sbu:backups-deleted (curry #'format t "~%~a"))
                      (sbu:backup-file-error (lambda (c)
                                               (format *standard-output* "Warning: ~a~%" c)
                                               (sbu:skip-file c)))

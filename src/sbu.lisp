@@ -28,7 +28,8 @@
            #:skip-clean-up
 
            #:backup-complete
-           #:file-copied))
+           #:file-copied
+           #:backups-deleted))
 
 (in-package :sbu)
 
@@ -226,6 +227,13 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
   (declare (ignore condition))
   (invoke-restart 'skip-clean-up))
 
+(define-condition backups-deleted ()
+  ((files :initarg :files :reader backups-deleted-files))
+  (:report (lambda (condition stream)
+             (format stream "Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
+                     (length (backups-deleted-files condition))
+                     (backups-deleted-files condition)))))
+
 (defun clean-up (file-path)
   (restart-case
       (handler-case
@@ -236,9 +244,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                                                          (> (file-write-date f1)
                                                             (file-write-date f2)))))))
                 (mapcar #'delete-file files-to-delete)
-                (format t "~%Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
-                        (length files-to-delete)
-                        files-to-delete))))
+                (signal 'backups-deleted :files files-to-delete))))
         (error ()
           (error 'clean-up-error :pathname file-path)))
     (skip-clean-up () nil)))
