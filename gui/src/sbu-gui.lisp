@@ -220,6 +220,8 @@
                                             (incf (capi:range-slug-start game-progress-bar))
                                             (incf total-seconds
                                                   (sbu:backup-complete-seconds-passed condition))
+                                            (setf (capi:title-pane-text last-game)
+                                                  (sbu:backup-complete-game-name condition))
                                             (cond ((>= (capi:range-slug-start game-progress-bar)
                                                        (capi:range-end game-progress-bar))
                                                    (capi:display-message
@@ -230,9 +232,7 @@
                                                                                   condition)
                                                                     :seconds-passed total-seconds))
                                                    (capi:destroy multi-progress-window))
-                                                  (t (setf (capi:title-pane-text last-game)
-                                                           (sbu:backup-complete-game-name condition)
-                                                           (capi:range-end file-progress-bar)
+                                                  (t (setf (capi:range-end file-progress-bar)
                                                            (sbu:backup-game (nth (capi:range-slug-start
                                                                                   game-progress-bar)
                                                                                  games-alist)
