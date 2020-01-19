@@ -195,7 +195,8 @@ Returns T if command exists, NIL otherwise."
         (let ((*debugger-hook* (if *application-catch-errors*
                                    #'error-and-abort
                                    *debugger-hook*))
-              (*program-name* (file-namestring (first (tu:get-command-line-args)))))
+              (*program-name* (file-namestring (or (first (uiop:command-line-arguments))
+                                                   *program-name*))))
           (opts:define-opts
             (:name :games-path
              :description "Path to games configuration file."
@@ -211,7 +212,7 @@ Returns T if command exists, NIL otherwise."
              :meta-var "PROGRAM_CONFIG_PATH"))
 
           (let* ((full-args (or (and args (cons nil args))
-                                (tu:get-command-line-args)))
+                                (uiop:command-line-arguments)))
                  (commands (hash-table-keys *commands*))
                  (command-position (position-if (op (position _ commands :test #'string=))
                                                 full-args)))

@@ -25,7 +25,6 @@
     :depends-on (:sbu
                  :unix-opts
                  :serapeum
-                 :travv0.utils
                  :metabang-bind
                  :alexandria)
     :components ((:file "sbu-cli")))
