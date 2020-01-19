@@ -5,11 +5,12 @@
 (load-all-patches)
 
 ;;; Load the application:
-(load "~/code/common-lisp/sbu/build.lisp")
+(load "~/code/common-lisp/sbu/gui/build.lisp")
 
-(deliver 'sbu/cli:main
-         "~/bin/sbu"
+(deliver 'sbu/gui:start
+         "~/bin/sbu-exe"
          5
+         :interface :capi
          :startup-bitmap-file nil
          :keep-conditions :all
          :keep-pretty-printer t
