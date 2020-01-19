@@ -13,12 +13,26 @@
           :reader games))
   (:panes
    (list-buttons capi:push-button-panel
-                 :items '(:|backup all| :backup :remove)
-                 :default-button :|backup all|
-                                 :print-function 'string-capitalize
-                                 :layout-class 'capi:column-layout
-                                 :layout-args `(:visible-min-width (:character ,button-width))
-                                 :callbacks (list 'backup-all 'backup 'remove-game))
+                 :items (list backup-all-button backup-button remove-button)
+                 :default-button backup-all-button
+                 :layout-class 'capi:column-layout)
+   (backup-all-button capi:push-button
+                      :text "Backup All"
+                      :visible-min-width `(:character ,button-width)
+                      :callback-type :interface
+                      :callback 'backup-all)
+   (backup-button capi:push-button
+                  :text "Backup"
+                  :visible-min-width `(:character ,button-width)
+                  :enabled nil
+                  :callback-type :interface
+                  :callback 'backup)
+   (remove-button capi:push-button
+                  :text "Remove"
+                  :visible-min-width `(:character ,button-width)
+                  :enabled nil
+                  :callback-type :interface
+                  :callback 'remove-game)
    (game-list capi:list-panel
               :items games
               :items-map-function (lambda (ht f cr)
@@ -38,21 +52,25 @@
               :retract-callback 'reselect-game)
    (game-name capi:text-input-pane
               :title "Game Name"
-              :title-args `(:visible-min-width (:character ,game-title-width)))
+              :title-args `(:visible-min-width (:character ,game-title-width))
+              :text-change-callback 'edit-game-callback)
    (game-save-path capi:text-input-pane
                    :title "Game Save Path"
                    :title-args `(:visible-min-width (:character ,game-title-width))
                    :file-completion t
                    :directories-only t
                    :buttons '(:ok nil
-                              :browse-file (:directory t)))
+                              :browse-file (:directory t))
+                   :text-change-callback 'edit-game-callback)
    (game-save-glob capi:text-input-pane
                    :title "Game Save Glob"
-                   :title-args `(:visible-min-width (:character ,game-title-width)))
+                   :title-args `(:visible-min-width (:character ,game-title-width))
+                   :text-change-callback 'edit-game-callback)
    (save-button capi:push-button :data "Save"
                                  :visible-min-width `(:character ,button-width)
                                  :callback-type :interface
-                                 :callback 'save-game))
+                                 :callback 'save-game
+                                 :enabled nil))
   (:layouts
    (main-layout capi:column-layout '(games-layout game-edit-layout))
    (games-layout capi:row-layout '(game-list list-buttons))
@@ -64,29 +82,51 @@
                      :adjust :right))
   (:default-initargs :title "Save Backup"))
 
+(defun edit-game-callback (text pane interface d)
+  (declare (ignore text pane d))
+  (with-slots (backup-all-button backup-button remove-button save-button) interface
+    (setf (capi:simple-pane-enabled backup-all-button) nil
+          (capi:simple-pane-enabled backup-button) nil
+          (capi:simple-pane-enabled remove-button) nil
+          (capi:simple-pane-enabled save-button) t)))
+
 (defun select-game (data interface)
-  (bind (((:slots games game-name game-save-path game-save-glob) interface)
+  (bind (((:slots games backup-all-button backup-button remove-button save-button
+                  game-name game-save-path game-save-glob)
+          interface)
          ((:accessors (game-name capi:text-input-pane-text)) game-name)
          ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
          ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob)
          ((:plist save-path save-glob) (gethash data games)))
-    (cond ((string= data "New...") (setf game-name ""
-                                         game-save-path ""
-                                         game-save-glob ""))
-          (t (setf game-name data
+    (cond ((string= data "New...") (select-new interface))
+          (t (setf (capi:simple-pane-enabled backup-all-button) t
+                   (capi:simple-pane-enabled backup-button) t
+                   (capi:simple-pane-enabled remove-button) t
+                   (capi:simple-pane-enabled save-button) nil
+                   game-name data
                    game-save-path save-path
                    game-save-glob save-glob)))))
 
-(defun reselect-game (data interface)
-  (declare (ignore data))
-  (bind (((:slots game-name game-save-path game-save-glob game-list) interface)
+(defun select-new (interface)
+  (bind (((:slots backup-all-button backup-button remove-button save-button
+                  game-name game-save-path game-save-glob)
+          interface)
          ((:accessors (game-name capi:text-input-pane-text)) game-name)
          ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
          ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob))
-    (setf (capi:choice-selection game-list) 0
+    (setf (capi:simple-pane-enabled backup-all-button) t
+          (capi:simple-pane-enabled backup-button) nil
+          (capi:simple-pane-enabled remove-button) nil
+          (capi:simple-pane-enabled save-button) nil
           game-name ""
           game-save-path ""
           game-save-glob "")))
+
+(defun reselect-game (data interface)
+  (declare (ignore data))
+  (with-slots (game-list) interface
+    (setf (capi:choice-selection game-list) 0)
+    (select-new interface)))
 
 (defun save-game (interface)
   (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
@@ -97,27 +137,19 @@
          (selected-game-name (capi:get-collection-item game-list selected-id))
          ((:accessors (game-list capi:collection-items)) game-list))
     (sbu:save-game games game-name game-save-path game-save-glob selected-game-name)
-    (setf game-list games
-          game-name ""
-          game-save-path ""
-          game-save-glob "")))
+    (setf game-list games)
+    (select-new interface)))
 
-(defun remove-game (data interface)
-  (declare (ignore data))
-  (bind (((:slots games game-list game-name game-save-path game-save-glob) interface)
-         ((:accessors (game-name capi:text-input-pane-text)) game-name)
-         ((:accessors (game-save-path capi:text-input-pane-text)) game-save-path)
-         ((:accessors (game-save-glob capi:text-input-pane-text)) game-save-glob)
+(defun remove-game (interface)
+  (bind (((:slots games game-list) interface)
          (selected-id (capi:choice-selection game-list))
          (selected-game-name (capi:get-collection-item game-list selected-id))
          ((:accessors (game-list capi:collection-items)) game-list))
     (when (capi:confirm-yes-or-no "Are you sure you would like to remove ~a from the list?"
                                   selected-game-name)
       (sbu:remove-game games selected-game-name)
-      (setf game-list games
-            game-name ""
-            game-save-path ""
-            game-save-glob ""))))
+      (setf game-list games)
+      (select-new interface))))
 
 (defun start ()
   (capi:display (make-instance 'window :games (sbu:load-games))))
@@ -133,8 +165,7 @@
   (:layouts
    (main-layout capi:column-layout '(last-file progress-bar))))
 
-(defun backup (data interface)
-  (declare (ignore data))
+(defun backup (interface)
   (bind (((:slots games game-list) interface)
          (selected-id (capi:choice-selection game-list))
          (selected-game-name (capi:get-collection-item game-list selected-id))
@@ -171,8 +202,7 @@
                                      last-file
                                      file-progress-bar))))
 
-(defun backup-all (data interface)
-  (declare (ignore data))
+(defun backup-all (interface)
   (let* ((total-seconds 0)
          (games-alist (hash-table-alist (games interface)))
          (multi-progress-window (capi:display
