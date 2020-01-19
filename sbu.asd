@@ -15,6 +15,7 @@
     :depends-on (:alexandria
                  :serapeum
                  :metabang-bind
+                 :cl-fad
                  :sbu)
     :components ((:file "sbu-gui")))
 

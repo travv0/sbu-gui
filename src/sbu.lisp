@@ -29,6 +29,8 @@
 
            #:backup-complete
            #:file-copied
+           #:file-copied-from
+           #:file-copied-to
            #:backups-deleted))
 
 (in-package :sbu)
@@ -147,12 +149,15 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                        second
                        (- tz))))))
 
-(tu:desfun backup-game ((game-name . (&key save-path save-glob)))
+(tu:desfun backup-game ((game-name . (&key save-path save-glob)) &key count-only)
   (restart-case
       (handler-case
-          (let ((start-time (get-internal-real-time)))
+          (let ((start-time (get-internal-real-time))
+                (file-count 0))
             (cl-fad:walk-directory save-path
-                                   (curry 'backup-file game-name save-path)
+                                   (op (incf file-count
+                                             (backup-file game-name save-path _
+                                                          :count-only count-only)))
                                    :directories :depth-first
                                    :follow-symlinks nil
                                    :test (lambda (file)
@@ -168,11 +173,12 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                       :game-name game-name
                       :seconds-passed (/ (- end-time start-time)
                                          internal-time-units-per-second)
-                      :finish-time (get-universal-time))))
+                      :finish-time (get-universal-time)))
+            file-count)
         (error ()
           (error 'backup-game-error :game-name game-name
                                     :game-path save-path)))
-    (skip-game () nil)))
+    (skip-game () 0)))
 
 (define-condition backup-file-error (backup-error file-error)
   ()
@@ -193,29 +199,35 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                      (file-copied-from condition)
                      (file-copied-to condition)))))
 
-(defun backup-file (game-name save-path from)
+(defun backup-file-name (from to)
+  (multiple-value-bind (sec min hour day month year)
+      (decode-universal-time (or (file-write-date from) 0) 0)
+    (format nil "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
+            to year month day hour min sec)))
+
+(defun backup-file (game-name save-path from &key count-only)
   (restart-case
       (handler-case
           (bind ((save-path (cl-fad:pathname-as-directory save-path))
                  (backup-path (path:catdir *backup-path* (cl-fad:pathname-as-directory game-name)))
                  (relative-save-path (subseq (namestring from) (length (namestring save-path))))
                  (to (path:catfile backup-path relative-save-path))
-                 ((:values sec min hour day month year) (decode-universal-time (or (file-write-date from) 0) 0))
-                 (full-to (format nil
-                                  "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
-                                  to year month day hour min sec)))
+                 (full-to (backup-file-name from to)))
             (unless (probe-file full-to)
-              (ensure-directories-exist (path:dirname full-to))
-              (cl-fad:copy-file from to :overwrite t)
-              (cl-fad:copy-file to full-to)
-              (signal 'file-copied :from from :to to))
-            (clean-up to))
+              (unless count-only
+                (ensure-directories-exist (path:dirname full-to))
+                (cl-fad:copy-file from to :overwrite t)
+                (cl-fad:copy-file to full-to)
+                (signal 'file-copied :from from :to to)
+                (clean-up to))
+              (return-from backup-file 1))
+            (return-from backup-file 0))
         (file-error (condition)
           (error condition))
         (error ()
           (error 'backup-file-error :game-name game-name
                                     :pathname from)))
-    (skip-file () nil)))
+    (skip-file () 0)))
 
 (define-condition clean-up-error (sbu-error file-error)
   ()

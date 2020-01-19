@@ -120,14 +120,36 @@
 (defun start ()
   (capi:display (make-instance 'window :games (sbu:load-games))))
 
-(defparameter *backup-path* "~/.sbu-backups/")
+(capi:define-interface progress-window ()
+  ((game-name :initarg :game-name :initform (error "game name is required"))
+   (file-count :initarg :file-count :initform (error "file count is required")))
+  (:panes
+   (progress-bar capi:progress-bar
+                 :start 0
+                 :end file-count)
+   (last-file capi:title-pane))
+  (:layouts
+   (main-layout capi:column-layout '(last-file progress-bar))))
 
 (defun backup (data interface)
   (declare (ignore data))
   (bind (((:slots games game-list) interface)
          (selected-id (capi:choice-selection game-list))
-         (selected-game-name (capi:get-collection-item game-list selected-id)))
-    (sbu:backup-game (assoc selected-game-name (hash-table-alist games)))))
+         (selected-game-name (capi:get-collection-item game-list selected-id))
+         (game-data (assoc selected-game-name (hash-table-alist games)))
+         (file-count (sbu:backup-game game-data :count-only t))
+         (progress-window (capi:display (make-instance 'progress-window
+                                                       :game-name selected-game-name
+                                                       :file-count file-count))))
+    (with-slots (progress-bar last-file) progress-window
+      (handler-bind ((sbu:file-copied (lambda (condition)
+                                        (setf (capi:title-pane-text last-file)
+                                              (namestring (sbu:file-copied-from condition)))
+                                        (incf (capi:range-slug-start progress-bar))))
+                     (sbu:backup-complete (lambda (condition)
+                                            (capi:display-message "~a" condition)
+                                            (capi:destroy progress-window))))
+        (sbu:backup-game game-data)))))
 
 (defun backup-all (data interface)
   (declare (ignore data))
