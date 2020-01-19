@@ -11,5 +11,6 @@
          "~/bin/sbu"
          5
          :startup-bitmap-file nil
+         :keep-conditions :all
          :keep-pretty-printer t
          :keep-lisp-reader t)

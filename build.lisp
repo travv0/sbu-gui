@@ -6,3 +6,4 @@
 (push #P"~/code/" ql:*local-project-directories*)
 (ql:register-local-projects)
 (ql:quickload :sbu/cli)
+(setq sbu/cli::*application-catch-errors* t)
