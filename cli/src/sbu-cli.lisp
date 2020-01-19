@@ -167,7 +167,9 @@ Returns T if command exists, NIL otherwise."
               (bind ((command-function (get-command-function command))
                      ((:values options free-args) (when args (opts:get-opts args))))
                 (handler-bind
-                    ((sbu:backup-file-error (lambda (c)
+                    ((sbu:backup-complete (curry #'format t "~%~a~%~%"))
+                     (sbu:file-copied (curry #'format t "~%~a"))
+                     (sbu:backup-file-error (lambda (c)
                                               (format *standard-output* "Warning: ~a~%" c)
                                               (sbu:skip-file c)))
                      (sbu:backup-game-error (lambda (c)

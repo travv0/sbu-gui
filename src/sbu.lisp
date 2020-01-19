@@ -25,7 +25,10 @@
 
            #:skip-game
            #:skip-file
-           #:skip-clean-up))
+           #:skip-clean-up
+
+           #:backup-complete
+           #:file-copied))
 
 (in-package :sbu)
 
@@ -123,6 +126,26 @@
   (declare (ignore condition))
   (invoke-restart 'skip-game))
 
+(define-condition backup-complete ()
+  ((game-name :initarg :game-name :reader backup-complete-game-name)
+   (finish-time :initarg :finish-time :reader backup-complete-finish-time)
+   (seconds-passed :initarg :seconds-passed :reader backup-complete-seconds-passed))
+  (:report (lambda (condition stream)
+             (bind (((:values second minute hour date month year day-of-week _ tz)
+                     (decode-universal-time (backup-complete-finish-time condition))))
+               (format stream "Finished backing up ~a in ~fs ~
+on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
+                       (backup-complete-game-name condition)
+                       (backup-complete-seconds-passed condition)
+                       (nth day-of-week *day-names*)
+                       (nth month *month-names*)
+                       date
+                       year
+                       hour
+                       minute
+                       second
+                       (- tz))))))
+
 (tu:desfun backup-game ((game-name . (&key save-path save-glob)))
   (restart-case
       (handler-case
@@ -139,22 +162,12 @@
                                                                    (if (string= (or save-glob "") "")
                                                                        "**/*"
                                                                        save-glob))))))
-            (bind ((end-time (get-internal-real-time))
-                   ((:values second minute hour date month year day-of-week _ tz)
-                    (get-decoded-time)))
-              (format t "~%Finished backing up ~a in ~fs ~
-on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
-                      game-name
-                      (/ (- end-time start-time)
-                         internal-time-units-per-second)
-                      (nth day-of-week *day-names*)
-                      (nth month *month-names*)
-                      date
-                      year
-                      hour
-                      minute
-                      second
-                      (- tz))))
+            (bind ((end-time (get-internal-real-time)))
+              (signal 'backup-complete
+                      :game-name game-name
+                      :seconds-passed (/ (- end-time start-time)
+                                         internal-time-units-per-second)
+                      :finish-time (get-universal-time))))
         (error ()
           (error 'backup-game-error :game-name game-name
                                     :game-path save-path)))
@@ -171,6 +184,14 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
   (declare (ignore condition))
   (invoke-restart 'skip-file))
 
+(define-condition file-copied ()
+  ((from :initarg :from :reader file-copied-from)
+   (to :initarg :to :reader file-copied-to))
+  (:report (lambda (condition stream)
+             (format stream "~a ==>~%~4t~a"
+                     (file-copied-from condition)
+                     (file-copied-to condition)))))
+
 (defun backup-file (game-name save-path from)
   (restart-case
       (handler-case
@@ -186,7 +207,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
               (ensure-directories-exist (path:dirname full-to))
               (cl-fad:copy-file from to :overwrite t)
               (cl-fad:copy-file to full-to)
-              (format t "~%~a ==>~%~4t~a" from to))
+              (signal 'file-copied :from from :to to))
             (clean-up to))
         (file-error (condition)
           (error condition))
