@@ -28,6 +28,9 @@
            #:skip-clean-up
 
            #:backup-complete
+           #:backup-complete-game-name
+           #:backup-complete-finish-time
+           #:backup-complete-seconds-passed
            #:file-copied
            #:file-copied-from
            #:file-copied-to

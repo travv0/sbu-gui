@@ -111,11 +111,13 @@
          (selected-id (capi:choice-selection game-list))
          (selected-game-name (capi:get-collection-item game-list selected-id))
          ((:accessors (game-list capi:collection-items)) game-list))
-    (sbu:remove-game games selected-game-name)
-    (setf game-list games
-          game-name ""
-          game-save-path ""
-          game-save-glob "")))
+    (when (capi:confirm-yes-or-no "Are you sure you would like to remove ~a from the list?"
+                                  selected-game-name)
+      (sbu:remove-game games selected-game-name)
+      (setf game-list games
+            game-name ""
+            game-save-path ""
+            game-save-glob ""))))
 
 (defun start ()
   (capi:display (make-instance 'window :games (sbu:load-games))))
@@ -151,6 +153,60 @@
                                             (capi:destroy progress-window))))
         (sbu:backup-game game-data)))))
 
+(capi:define-interface multiple-progress-window ()
+  ((game-count :initarg :game-count :initform (error "game count is required"))
+   (file-count :initarg :file-count :initform (error "file count is required")))
+  (:panes
+   (file-progress-bar capi:progress-bar
+                      :start 0
+                      :end file-count)
+   (game-progress-bar capi:progress-bar
+                      :start 0
+                      :end game-count)
+   (last-file capi:title-pane)
+   (last-game capi:title-pane))
+  (:layouts
+   (main-layout capi:column-layout '(last-game
+                                     game-progress-bar
+                                     last-file
+                                     file-progress-bar))))
+
 (defun backup-all (data interface)
   (declare (ignore data))
-  (sbu:backup-all (games interface)))
+  (let* ((total-seconds 0)
+         (games-alist (hash-table-alist (games interface)))
+         (multi-progress-window (capi:display
+                                 (make-instance 'multiple-progress-window
+                                                :game-count (length games-alist)
+                                                :file-count (sbu:backup-game (car games-alist)
+                                                                             :count-only t)))))
+    (with-slots (file-progress-bar last-file game-progress-bar last-game)
+        multi-progress-window
+      (handler-bind ((sbu:file-copied (lambda (condition)
+                                        (setf (capi:title-pane-text last-file)
+                                              (namestring (sbu:file-copied-from condition)))
+                                        (incf (capi:range-slug-start file-progress-bar))))
+                     (sbu:backup-complete (lambda (condition)
+                                            (incf (capi:range-slug-start game-progress-bar))
+                                            (incf total-seconds
+                                                  (sbu:backup-complete-seconds-passed condition))
+                                            (cond ((>= (capi:range-slug-start game-progress-bar)
+                                                       (capi:range-end game-progress-bar))
+                                                   (capi:display-message
+                                                    "~a"
+                                                    (make-condition 'sbu:backup-complete
+                                                                    :game-name "all games"
+                                                                    :finish-time (sbu:backup-complete-finish-time
+                                                                                  condition)
+                                                                    :seconds-passed total-seconds))
+                                                   (capi:destroy multi-progress-window))
+                                                  (t (setf (capi:title-pane-text last-game)
+                                                           (sbu:backup-complete-game-name condition)
+                                                           (capi:range-end file-progress-bar)
+                                                           (sbu:backup-game (nth (capi:range-slug-start
+                                                                                  game-progress-bar)
+                                                                                 games-alist)
+                                                                            :count-only t)
+                                                           (capi:range-slug-start file-progress-bar) 0
+                                                           (capi:title-pane-text last-file) ""))))))
+        (sbu:backup-all (games interface))))))
