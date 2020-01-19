@@ -24,7 +24,9 @@
            #:clean-up-error
 
            #:skip-game
+           #:treat-backup-as-complete
            #:skip-file
+           #:treat-file-as-copied
            #:skip-clean-up
 
            #:backup-complete
@@ -132,6 +134,10 @@
   (declare (ignore condition))
   (invoke-restart 'skip-game))
 
+(defun treat-backup-as-complete (condition)
+  (declare (ignore condition))
+  (invoke-restart 'treat-backup-as-complete))
+
 (define-condition backup-complete ()
   ((game-name :initarg :game-name :reader backup-complete-game-name)
    (finish-time :initarg :finish-time :reader backup-complete-finish-time)
@@ -153,35 +159,40 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                        (- tz))))))
 
 (tu:desfun backup-game ((game-name . (&key save-path save-glob)) &key count-only)
-  (restart-case
-      (handler-case
-          (let ((start-time (get-internal-real-time))
-                (file-count 0))
-            (cl-fad:walk-directory save-path
-                                   (op (incf file-count
-                                             (backup-file game-name save-path _
-                                                          :count-only count-only)))
-                                   :directories :depth-first
-                                   :follow-symlinks nil
-                                   :test (lambda (file)
-                                           (and (not (cl-fad:directory-pathname-p file))
-                                                (pathname-match-p (cl-fad:pathname-as-file file)
-                                                                  (path:catfile
-                                                                   (cl-fad:pathname-as-directory save-path)
-                                                                   (if (string= (or save-glob "") "")
-                                                                       "**/*"
-                                                                       save-glob))))))
-            (bind ((end-time (get-internal-real-time)))
-              (signal 'backup-complete
-                      :game-name game-name
-                      :seconds-passed (/ (- end-time start-time)
-                                         internal-time-units-per-second)
-                      :finish-time (get-universal-time)))
-            file-count)
-        (error ()
-          (error 'backup-game-error :game-name game-name
-                                    :game-path save-path)))
-    (skip-game () 0)))
+  (let ((start-time (get-internal-real-time))
+        (file-count 0))
+    (flet ((signal-complete ()
+             (bind ((end-time (get-internal-real-time)))
+               (signal 'backup-complete
+                       :game-name game-name
+                       :seconds-passed (/ (- end-time start-time)
+                                          internal-time-units-per-second)
+                       :finish-time (get-universal-time)))))
+      (restart-case
+          (handler-case
+              (progn
+                (cl-fad:walk-directory save-path
+                                       (op (incf file-count
+                                                 (backup-file game-name save-path _
+                                                              :count-only count-only)))
+                                       :directories :depth-first
+                                       :follow-symlinks nil
+                                       :test (lambda (file)
+                                               (and (not (cl-fad:directory-pathname-p file))
+                                                    (pathname-match-p (cl-fad:pathname-as-file file)
+                                                                      (path:catfile
+                                                                       (cl-fad:pathname-as-directory save-path)
+                                                                       (if (string= (or save-glob "") "")
+                                                                           "**/*"
+                                                                           save-glob))))))
+                (signal-complete)
+                file-count)
+            (error ()
+              (error 'backup-game-error :game-name game-name
+                                        :game-path save-path)))
+        (skip-game () 1)
+        (treat-backup-as-complete ()
+          (signal-complete))))))
 
 (define-condition backup-file-error (backup-error file-error)
   ()
@@ -193,6 +204,10 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
 (defun skip-file (condition)
   (declare (ignore condition))
   (invoke-restart 'skip-file))
+
+(defun treat-file-as-copied (condition)
+  (declare (ignore condition))
+  (invoke-restart 'treat-file-as-copied))
 
 (define-condition file-copied ()
   ((from :initarg :from :reader file-copied-from)
@@ -230,7 +245,9 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
         (error ()
           (error 'backup-file-error :game-name game-name
                                     :pathname from)))
-    (skip-file () 0)))
+    (skip-file () 1)
+    (treat-file-as-copied ()
+      (signal 'file-copied :from from))))
 
 (define-condition clean-up-error (sbu-error file-error)
   ()

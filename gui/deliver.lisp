@@ -8,7 +8,7 @@
 (load "~/code/common-lisp/sbu/gui/build.lisp")
 
 (deliver 'sbu/gui:start
-         "~/bin/sbu-exe"
+         "~/bin/sbu-gui"
          5
          :interface :capi
          :startup-bitmap-file nil
