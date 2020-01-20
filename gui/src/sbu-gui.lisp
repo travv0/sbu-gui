@@ -6,8 +6,8 @@
 (in-package :sbu/gui)
 
 (capi:define-interface window ()
-  ((game-title-width :initarg :game-title-width :initform 17)
-   (button-width :initarg :button-width :initform 12)
+  ((game-title-width :initarg :game-title-width :initform 20)
+   (button-width :initarg :button-width :initform 15)
    (games :initarg :games
           :initform (make-hash-table :test 'equal)
           :reader games))
@@ -80,7 +80,8 @@
                        game-save-glob
                        save-button)
                      :adjust :right))
-  (:default-initargs :title "Save Backup"))
+  (:default-initargs :title "Save Backup"
+                     :internal-border 5))
 
 (defun edit-game-callback (text pane interface d)
   (declare (ignore text pane d))
@@ -198,19 +199,20 @@ The following warnings occurred:~%~{~a~%~}~]")
     "Jun" "Jul" "Aug" "Sep" "Oct"
     "Nov" "Dec"))
 
-(defun handle-warning (restart-function warnings)
-  `(lambda (condition)
-     (push (format nil "~a" condition) ,warnings)
-     (funcall ',restart-function condition)))
+(eval-when (:compile-toplevel)
+  (defun push-warning (restart-function warnings)
+    `(lambda (condition)
+       (push (format nil "~a" condition) ,warnings)
+       (funcall ',restart-function condition))))
 
-(defmacro handle-backup-game-error (warnings)
-  (handle-warning 'sbu:treat-backup-as-complete warnings))
+(defmacro push-backup-game-warning (warnings)
+  (push-warning 'sbu:treat-backup-as-complete warnings))
 
-(defmacro handle-backup-file-error (warnings)
-  (handle-warning 'sbu:treat-file-as-copied warnings))
+(defmacro push-backup-file-warning (warnings)
+  (push-warning 'sbu:treat-file-as-copied warnings))
 
-(defmacro handle-clean-up-error (warnings)
-  (handle-warning 'sbu:skip-clean-up warnings))
+(defmacro push-clean-up-warning (warnings)
+  (push-warning 'sbu:skip-clean-up warnings))
 
 (defun backup (interface)
   (bind (warnings
@@ -234,9 +236,12 @@ The following warnings occurred:~%~{~a~%~}~]")
                (display-completed-message game-name finish-time seconds-passed warnings)
                (capi:destroy progress-window)))
 
-        (handler-bind ((sbu:backup-game-error (handle-backup-game-error warnings))
-                       (sbu:backup-file-error (handle-backup-file-error warnings))
-                       (sbu:clean-up-error (handle-clean-up-error warnings)))
+        (handler-bind ((sbu:backup-game-error (lambda (c)
+                                                (capi:display-message "Error: ~a" c)
+                                                (capi:destroy progress-window)
+                                                (abort c)))
+                       (sbu:backup-file-error (push-backup-file-warning warnings))
+                       (sbu:clean-up-error (push-clean-up-warning warnings)))
           (let ((sbu:*backup-file-callback* #'backup-file-callback)
                 (sbu:*backup-game-callback* #'backup-game-callback))
             (sbu:backup-game game-data)))))))
@@ -301,9 +306,9 @@ The following warnings occurred:~%~{~a~%~}~]")
                                 (capi:range-slug-start file-progress-bar) 0
                                 (capi:title-pane-text last-file) "")))))
 
-          (handler-bind ((sbu:backup-game-error (handle-backup-game-error warnings))
-                         (sbu:backup-file-error (handle-backup-file-error warnings))
-                         (sbu:clean-up-error (handle-clean-up-error warnings)))
+          (handler-bind ((sbu:backup-game-error (push-backup-game-warning warnings))
+                         (sbu:backup-file-error (push-backup-file-warning warnings))
+                         (sbu:clean-up-error (push-clean-up-warning warnings)))
             (let ((sbu:*backup-file-callback* #'backup-file-callback)
                   (sbu:*backup-game-callback* #'backup-game-callback))
               (sbu:backup-all (games interface)))))))))

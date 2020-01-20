@@ -189,6 +189,11 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
           (length files)
           files))
 
+(defun print-warning (restart-function)
+  (lambda (condition)
+    (format t "Warning: ~a~%" condition)
+    (funcall restart-function condition)))
+
 (defun handle-command (command args &optional application-name)
   (if (set-opts command)
       (if (help-flag-p args)
@@ -199,15 +204,9 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
               (bind ((command-function (get-command-function command))
                      ((:values options free-args) (when args (opts:get-opts args))))
                 (handler-bind
-                    ((sbu:backup-file-error (lambda (c)
-                                              (format *standard-output* "Warning: ~a~%" c)
-                                              (sbu:skip-file c)))
-                     (sbu:backup-game-error (lambda (c)
-                                              (format *standard-output* "Warning: ~a~%" c)
-                                              (sbu:skip-game c)))
-                     (sbu:clean-up-error (lambda (c)
-                                           (format *standard-output* "Warning: ~a~%" c)
-                                           (sbu:skip-clean-up c))))
+                    ((sbu:backup-file-error (print-warning #'sbu:skip-file))
+                     (sbu:backup-game-error (print-warning #'sbu:skip-game))
+                     (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
                   (let ((sbu:*backup-file-callback* 'backup-file-callback)
                         (sbu:*backup-game-callback* 'backup-game-callback)
                         (sbu:*clean-up-callback* 'clean-up-callback))
@@ -219,7 +218,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                              :prefix (format nil "Error: ~a" condition)))))
       (describe-commands :usage-of application-name)))
 
-(defparameter *application-catch-errors* nil)
+(defvar *application-catch-errors* nil)
 
 (defun main (&rest args)
   (flet ((error-and-abort (condition debugger-hook)
