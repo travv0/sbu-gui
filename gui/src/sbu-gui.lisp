@@ -198,6 +198,20 @@ The following warnings occurred:~%~{~a~%~}~]")
     "Jun" "Jul" "Aug" "Sep" "Oct"
     "Nov" "Dec"))
 
+(defun handle-warning (restart-function warnings)
+  `(lambda (condition)
+     (push (format nil "~a" condition) ,warnings)
+     (funcall ',restart-function condition)))
+
+(defmacro handle-backup-game-error (warnings)
+  (handle-warning 'sbu:treat-backup-as-complete warnings))
+
+(defmacro handle-backup-file-error (warnings)
+  (handle-warning 'sbu:treat-file-as-copied warnings))
+
+(defmacro handle-clean-up-error (warnings)
+  (handle-warning 'sbu:skip-clean-up warnings))
+
 (defun backup (interface)
   (bind (warnings
          ((:slots games game-list) interface)
@@ -227,21 +241,6 @@ The following warnings occurred:~%~{~a~%~}~]")
                 (sbu:*backup-game-callback* #'backup-game-callback))
             (sbu:backup-game game-data)))))))
 
-(defun handle-backup-game-error (warnings)
-  (lambda (condition)
-    (push (format nil "~a" condition) warnings)
-    (sbu:treat-backup-as-complete condition)))
-
-(defun handle-backup-file-error (warnings)
-  (lambda (condition)
-    (push (format nil "~a" condition) warnings)
-    (sbu:treat-file-as-copied condition)))
-
-(defun handle-clean-up-error (warnings)
-  (lambda (condition)
-    (push (format nil "~a" condition) warnings)
-    (sbu:skip-clean-up condition)))
-
 (capi:define-interface multiple-progress-window ()
   ((game-count :initarg :game-count :initform (error "game count is required"))
    (file-count :initarg :file-count :initform (error "file count is required"))
@@ -266,7 +265,7 @@ The following warnings occurred:~%~{~a~%~}~]")
                                      file-progress-bar)))
   (:default-initargs :title "Backup Progress"))
 
-(defun zero-if-error (n)
+(defmacro zero-if-error (n)
   (or (ignore-errors n) 0))
 
 (defun backup-all (interface)

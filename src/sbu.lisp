@@ -132,7 +132,7 @@
         (file-count 0))
     (flet ((complete-callback ()
              (bind ((end-time (get-internal-real-time)))
-               (when *backup-game-callback*
+               (when (and (not count-only) *backup-game-callback*)
                  (funcall *backup-game-callback*
                           game-name
                           (get-universal-time)
