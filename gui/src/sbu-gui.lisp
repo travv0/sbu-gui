@@ -271,7 +271,10 @@ The following warnings occurred:~%~{~a~%~}~]")
   (:default-initargs :title "Backup Progress"))
 
 (defmacro zero-if-error (n)
-  (or (ignore-errors n) 0))
+  `(or (ignore-errors ,n) 0))
+
+(defun number-of-files-to-backup (game)
+  (zero-if-error (sbu:backup-game game :count-only t)))
 
 (defun backup-all (interface)
   (when-let ((games-alist (hash-table-alist (games interface))))
@@ -280,9 +283,8 @@ The following warnings occurred:~%~{~a~%~}~]")
            (multi-progress-window (capi:display
                                    (make-instance 'multiple-progress-window
                                                   :game-count (length games-alist)
-                                                  :file-count (zero-if-error
-                                                               (sbu:backup-game (car games-alist)
-                                                                                :count-only t))))))
+                                                  :file-count (number-of-files-to-backup
+                                                               (car games-alist))))))
       (with-slots (file-progress-bar last-file game-progress-bar last-game)
           multi-progress-window
         (flet ((backup-file-callback (from to)
@@ -299,10 +301,8 @@ The following warnings occurred:~%~{~a~%~}~]")
                         (display-completed-message "all" time-complete seconds-passed warnings)
                         (capi:destroy multi-progress-window))
                        (t (setf (capi:range-end file-progress-bar)
-                                (zero-if-error (sbu:backup-game (nth (capi:range-slug-start
-                                                                      game-progress-bar)
-                                                                     games-alist)
-                                                                :count-only t))
+                                (number-of-files-to-backup (nth (capi:range-slug-start game-progress-bar)
+                                                                games-alist))
                                 (capi:range-slug-start file-progress-bar) 0
                                 (capi:title-pane-text last-file) "")))))
 
