@@ -169,9 +169,34 @@
    (main-layout capi:column-layout '(last-file progress-bar)))
   (:default-initargs :title "Backup Progress"))
 
-(defparameter *completed-message-format* "~a~@[
+(defparameter *completed-message-format* "Finished backing up ~a in ~fs ~
+on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~@[
 
 The following warnings occurred:~%~{~a~%~}~]")
+
+(defun display-completed-message (game-name time-completed seconds-passed warnings)
+  (bind (((:values second minute hour date month year day-of-week _ tz)
+          (decode-universal-time time-completed)))
+    (capi:display-message *completed-message-format*
+                          game-name
+                          seconds-passed
+                          (nth day-of-week *day-names*)
+                          (nth month *month-names*)
+                          date
+                          year
+                          hour
+                          minute
+                          second
+                          (- tz)
+                          warnings)))
+
+(defparameter *day-names*
+  '("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"))
+
+(defparameter *month-names*
+  '("Jan" "Feb" "Mar" "Apr" "May"
+    "Jun" "Jul" "Aug" "Sep" "Oct"
+    "Nov" "Dec"))
 
 (defun backup (interface)
   (bind (warnings
@@ -184,27 +209,38 @@ The following warnings occurred:~%~{~a~%~}~]")
          (progress-window (capi:display (make-instance 'progress-window
                                                        :game-name selected-game-name
                                                        :file-count file-count))))
+
     (with-slots (progress-bar last-file) progress-window
-      (handler-bind ((sbu:backup-game-error (lambda (condition)
-                                              (push (format nil "~a" condition) warnings)
-                                              (sbu:treat-backup-as-complete condition)))
-                     (sbu:backup-file-error (lambda (condition)
-                                              (push (format nil "~a" condition) warnings)
-                                              (sbu:treat-file-as-copied condition)))
-                     (sbu:clean-up-error (lambda (condition)
-                                           (push (format nil "~a" condition) warnings)
-                                           (sbu:skip-clean-up condition)))
-                     (sbu:file-copied (lambda (condition)
-                                        (setf (capi:title-pane-text last-file)
-                                              (namestring (sbu:file-copied-from condition)))
-                                        (incf (capi:range-slug-start progress-bar))))
-                     (sbu:backup-complete (lambda (condition)
-                                            (capi:display-message
-                                             *completed-message-format*
-                                             condition
-                                             warnings)
-                                            (capi:destroy progress-window))))
-        (sbu:backup-game game-data)))))
+      (flet ((backup-file-callback (from to)
+               (declare (ignore to))
+               (setf (capi:title-pane-text last-file) (namestring from))
+               (incf (capi:range-slug-start progress-bar)))
+
+             (backup-game-callback (game-name finish-time seconds-passed)
+               (display-completed-message game-name finish-time seconds-passed warnings)
+               (capi:destroy progress-window)))
+
+        (handler-bind ((sbu:backup-game-error (handle-backup-game-error warnings))
+                       (sbu:backup-file-error (handle-backup-file-error warnings))
+                       (sbu:clean-up-error (handle-clean-up-error warnings)))
+          (let ((sbu:*backup-file-callback* #'backup-file-callback)
+                (sbu:*backup-game-callback* #'backup-game-callback))
+            (sbu:backup-game game-data)))))))
+
+(defun handle-backup-game-error (warnings)
+  (lambda (condition)
+    (push (format nil "~a" condition) warnings)
+    (sbu:treat-backup-as-complete condition)))
+
+(defun handle-backup-file-error (warnings)
+  (lambda (condition)
+    (push (format nil "~a" condition) warnings)
+    (sbu:treat-file-as-copied condition)))
+
+(defun handle-clean-up-error (warnings)
+  (lambda (condition)
+    (push (format nil "~a" condition) warnings)
+    (sbu:skip-clean-up condition)))
 
 (capi:define-interface multiple-progress-window ()
   ((game-count :initarg :game-count :initform (error "game count is required"))
@@ -230,6 +266,9 @@ The following warnings occurred:~%~{~a~%~}~]")
                                      file-progress-bar)))
   (:default-initargs :title "Backup Progress"))
 
+(defun zero-if-error (n)
+  (or (ignore-errors n) 0))
+
 (defun backup-all (interface)
   (when-let ((games-alist (hash-table-alist (games interface))))
     (let* ((total-seconds 0)
@@ -237,48 +276,35 @@ The following warnings occurred:~%~{~a~%~}~]")
            (multi-progress-window (capi:display
                                    (make-instance 'multiple-progress-window
                                                   :game-count (length games-alist)
-                                                  :file-count (or (ignore-errors
-                                                                   (sbu:backup-game (car games-alist)
-                                                                                    :count-only t))
-                                                                  0)))))
+                                                  :file-count (zero-if-error
+                                                               (sbu:backup-game (car games-alist)
+                                                                                :count-only t))))))
       (with-slots (file-progress-bar last-file game-progress-bar last-game)
           multi-progress-window
-        (handler-bind ((sbu:backup-game-error (lambda (condition)
-                                                (push (format nil "~a" condition) warnings)
-                                                (sbu:treat-backup-as-complete condition)))
-                       (sbu:backup-file-error (lambda (condition)
-                                                (push (format nil "~a" condition) warnings)
-                                                (sbu:treat-file-as-copied condition)))
-                       (sbu:clean-up-error (lambda (condition)
-                                             (push (format nil "~a" condition) warnings)
-                                             (sbu:skip-clean-up condition)))
-                       (sbu:file-copied (lambda (condition)
-                                          (setf (capi:title-pane-text last-file)
-                                                (namestring (sbu:file-copied-from condition)))
-                                          (incf (capi:range-slug-start file-progress-bar))))
-                       (sbu:backup-complete (lambda (condition)
-                                              (incf (capi:range-slug-start game-progress-bar))
-                                              (incf total-seconds
-                                                    (sbu:backup-complete-seconds-passed condition))
-                                              (setf (capi:title-pane-text last-game)
-                                                    (sbu:backup-complete-game-name condition))
-                                              (cond ((>= (capi:range-slug-start game-progress-bar)
-                                                         (capi:range-end game-progress-bar))
-                                                     (capi:display-message
-                                                      *completed-message-format*
-                                                      (make-condition 'sbu:backup-complete
-                                                                      :game-name "all games"
-                                                                      :finish-time (sbu:backup-complete-finish-time
-                                                                                    condition)
-                                                                      :seconds-passed total-seconds)
-                                                      warnings)
-                                                     (capi:destroy multi-progress-window))
-                                                    (t (setf (capi:range-end file-progress-bar)
-                                                             (or (ignore-errors (sbu:backup-game (nth (capi:range-slug-start
-                                                                                                       game-progress-bar)
-                                                                                                      games-alist)
-                                                                                                 :count-only t))
-                                                                 0)
-                                                             (capi:range-slug-start file-progress-bar) 0
-                                                             (capi:title-pane-text last-file) ""))))))
-          (sbu:backup-all (games interface)))))))
+        (flet ((backup-file-callback (from to)
+                 (declare (ignore to))
+                 (setf (capi:title-pane-text last-file) (namestring from))
+                 (incf (capi:range-slug-start file-progress-bar)))
+
+               (backup-game-callback (game-name time-complete seconds-passed)
+                 (incf (capi:range-slug-start game-progress-bar))
+                 (incf total-seconds seconds-passed)
+                 (setf (capi:title-pane-text last-game) game-name)
+                 (cond ((>= (capi:range-slug-start game-progress-bar)
+                            (capi:range-end game-progress-bar))
+                        (display-completed-message "all" time-complete seconds-passed warnings)
+                        (capi:destroy multi-progress-window))
+                       (t (setf (capi:range-end file-progress-bar)
+                                (zero-if-error (sbu:backup-game (nth (capi:range-slug-start
+                                                                      game-progress-bar)
+                                                                     games-alist)
+                                                                :count-only t))
+                                (capi:range-slug-start file-progress-bar) 0
+                                (capi:title-pane-text last-file) "")))))
+
+          (handler-bind ((sbu:backup-game-error (handle-backup-game-error warnings))
+                         (sbu:backup-file-error (handle-backup-file-error warnings))
+                         (sbu:clean-up-error (handle-clean-up-error warnings)))
+            (let ((sbu:*backup-file-callback* #'backup-file-callback)
+                  (sbu:*backup-game-callback* #'backup-game-callback))
+              (sbu:backup-all (games interface)))))))))
