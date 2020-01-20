@@ -15,6 +15,10 @@
            #:*backup-frequency*
            #:*backups-to-keep*
 
+           #:*backup-file-callback*
+           #:*backup-game-callback*
+           #:*clean-up-callback*
+
            #:sbu-error
            #:load-config-error
            #:bad-config-format-error
@@ -27,16 +31,7 @@
            #:treat-backup-as-complete
            #:skip-file
            #:treat-file-as-copied
-           #:skip-clean-up
-
-           #:backup-complete
-           #:backup-complete-game-name
-           #:backup-complete-finish-time
-           #:backup-complete-seconds-passed
-           #:file-copied
-           #:file-copied-from
-           #:file-copied-to
-           #:backups-deleted))
+           #:skip-clean-up))
 
 (in-package :sbu)
 
@@ -105,14 +100,6 @@
        hash-table-alist
        (mapcar 'backup-game)))
 
-(defparameter *day-names*
-  '("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"))
-
-(defparameter *month-names*
-  '("Jan" "Feb" "Mar" "Apr" "May"
-    "Jun" "Jul" "Aug" "Sep" "Oct"
-    "Nov" "Dec"))
-
 (define-condition backup-error (sbu-error)
   ((game-name :initarg :game-name :reader backup-error-game-name))
   (:report (lambda (condition stream)
@@ -138,36 +125,19 @@
   (declare (ignore condition))
   (invoke-restart 'treat-backup-as-complete))
 
-(define-condition backup-complete ()
-  ((game-name :initarg :game-name :reader backup-complete-game-name)
-   (finish-time :initarg :finish-time :reader backup-complete-finish-time)
-   (seconds-passed :initarg :seconds-passed :reader backup-complete-seconds-passed))
-  (:report (lambda (condition stream)
-             (bind (((:values second minute hour date month year day-of-week _ tz)
-                     (decode-universal-time (backup-complete-finish-time condition))))
-               (format stream "Finished backing up ~a in ~fs ~
-on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
-                       (backup-complete-game-name condition)
-                       (backup-complete-seconds-passed condition)
-                       (nth day-of-week *day-names*)
-                       (nth month *month-names*)
-                       date
-                       year
-                       hour
-                       minute
-                       second
-                       (- tz))))))
+(defparameter *backup-game-callback* nil)
 
 (tu:desfun backup-game ((game-name . (&key save-path save-glob)) &key count-only)
   (let ((start-time (get-internal-real-time))
         (file-count 0))
-    (flet ((signal-complete ()
+    (flet ((complete-callback ()
              (bind ((end-time (get-internal-real-time)))
-               (signal 'backup-complete
-                       :game-name game-name
-                       :seconds-passed (/ (- end-time start-time)
-                                          internal-time-units-per-second)
-                       :finish-time (get-universal-time)))))
+               (when *backup-game-callback*
+                 (funcall *backup-game-callback*
+                          game-name
+                          (get-universal-time)
+                          (/ (- end-time start-time)
+                             internal-time-units-per-second))))))
       (restart-case
           (handler-case
               (progn
@@ -185,14 +155,14 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                                                                        (if (string= (or save-glob "") "")
                                                                            "**/*"
                                                                            save-glob))))))
-                (signal-complete)
+                (complete-callback)
                 file-count)
             (error ()
               (error 'backup-game-error :game-name game-name
                                         :game-path save-path)))
         (skip-game () 1)
         (treat-backup-as-complete ()
-          (signal-complete))))))
+          (complete-callback))))))
 
 (define-condition backup-file-error (backup-error file-error)
   ()
@@ -209,19 +179,13 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
   (declare (ignore condition))
   (invoke-restart 'treat-file-as-copied))
 
-(define-condition file-copied ()
-  ((from :initarg :from :reader file-copied-from)
-   (to :initarg :to :reader file-copied-to))
-  (:report (lambda (condition stream)
-             (format stream "~a ==>~%~4t~a"
-                     (file-copied-from condition)
-                     (file-copied-to condition)))))
-
 (defun backup-file-name (from to)
   (multiple-value-bind (sec min hour day month year)
       (decode-universal-time (or (file-write-date from) 0) 0)
     (format nil "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
             to year month day hour min sec)))
+
+(defparameter *backup-file-callback* nil)
 
 (defun backup-file (game-name save-path from &key count-only)
   (restart-case
@@ -236,7 +200,8 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                 (ensure-directories-exist (path:dirname full-to))
                 (cl-fad:copy-file from to :overwrite t)
                 (cl-fad:copy-file to full-to)
-                (signal 'file-copied :from from :to to)
+                (when *backup-file-callback*
+                  (funcall *backup-file-callback* from to))
                 (clean-up to))
               (return-from backup-file 1))
             (return-from backup-file 0))
@@ -247,7 +212,8 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                                     :pathname from)))
     (skip-file () 1)
     (treat-file-as-copied ()
-      (signal 'file-copied :from from))))
+      (when *backup-file-callback*
+        (funcall *backup-file-callback* from nil)))))
 
 (define-condition clean-up-error (sbu-error file-error)
   ()
@@ -259,12 +225,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
   (declare (ignore condition))
   (invoke-restart 'skip-clean-up))
 
-(define-condition backups-deleted ()
-  ((files :initarg :files :reader backups-deleted-files))
-  (:report (lambda (condition stream)
-             (format stream "Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
-                     (length (backups-deleted-files condition))
-                     (backups-deleted-files condition)))))
+(defparameter *clean-up-callback* nil)
 
 (defun clean-up (file-path)
   (restart-case
@@ -276,7 +237,8 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)"
                                                          (> (file-write-date f1)
                                                             (file-write-date f2)))))))
                 (mapcar #'delete-file files-to-delete)
-                (signal 'backups-deleted :files files-to-delete))))
+                (when *clean-up-callback*
+                  (funcall *clean-up-callback* files-to-delete)))))
         (error ()
           (error 'clean-up-error :pathname file-path)))
     (skip-clean-up () nil)))

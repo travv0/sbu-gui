@@ -157,6 +157,38 @@ Returns T if command exists, NIL otherwise."
   (or (position "-h" args :test 'string=)
       (position "--help" args :test 'string=)))
 
+(defun backup-file-callback (from to)
+  (format t "~%~a ==>~%~4t~a" from to))
+
+(defparameter *day-names*
+  '("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"))
+
+(defparameter *month-names*
+  '("Jan" "Feb" "Mar" "Apr" "May"
+    "Jun" "Jul" "Aug" "Sep" "Oct"
+    "Nov" "Dec"))
+
+(defun backup-game-callback (game-name finish-time seconds-passed)
+  (bind (((:values second minute hour date month year day-of-week _ tz)
+          (decode-universal-time finish-time)))
+    (format t "~%Finished backing up ~a in ~fs ~
+on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
+            game-name
+            seconds-passed
+            (nth day-of-week *day-names*)
+            (nth month *month-names*)
+            date
+            year
+            hour
+            minute
+            second
+            (- tz))))
+
+(defun clean-up-callback (files)
+  (format t "~%Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
+          (length files)
+          files))
+
 (defun handle-command (command args &optional application-name)
   (if (set-opts command)
       (if (help-flag-p args)
@@ -167,10 +199,7 @@ Returns T if command exists, NIL otherwise."
               (bind ((command-function (get-command-function command))
                      ((:values options free-args) (when args (opts:get-opts args))))
                 (handler-bind
-                    ((sbu:backup-complete (curry #'format t "~%~a~%~%"))
-                     (sbu:file-copied (curry #'format t "~%~a"))
-                     (sbu:backups-deleted (curry #'format t "~%~a"))
-                     (sbu:backup-file-error (lambda (c)
+                    ((sbu:backup-file-error (lambda (c)
                                               (format *standard-output* "Warning: ~a~%" c)
                                               (sbu:skip-file c)))
                      (sbu:backup-game-error (lambda (c)
@@ -179,7 +208,10 @@ Returns T if command exists, NIL otherwise."
                      (sbu:clean-up-error (lambda (c)
                                            (format *standard-output* "Warning: ~a~%" c)
                                            (sbu:skip-clean-up c))))
-                  (funcall command-function options free-args)))
+                  (let ((sbu:*backup-file-callback* 'backup-file-callback)
+                        (sbu:*backup-game-callback* 'backup-game-callback)
+                        (sbu:*clean-up-callback* 'clean-up-callback))
+                    (funcall command-function options free-args))))
             (opts::troublesome-option (condition)
               (opts:describe :usage-of (when application-name
                                          (format nil "~a ~a" application-name command))
