@@ -379,12 +379,12 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                             (or new-game-path old-game-path)
                             (or new-game-glob old-game-glob "")
                             old-game-name)
-             (format t "~@[Name: ~{~a -> ~a~}~%~]~
-~@[Save-Path: ~{~a -> ~a~}~%~]~
-~@[Save-Glob: ~{~a -> ~a~}~%~]~%"
-                     (and (getf options :name) (list old-game-name new-game-name))
-                     (and new-game-path (list old-game-path new-game-path))
-                     (and new-game-glob (list old-game-glob new-game-glob)))))))
+             (format t "Name: ~a~@[ -> ~a~]
+Save-Path: ~a~@[ -> ~a~]
+Save-Glob: ~a~@[ -> ~a~]~%"
+                     old-game-name (getf options :name)
+                     old-game-path new-game-path
+                     old-game-glob new-game-glob)))))
 
 (defun config (options free-args)
   (let* ((config (sbu:load-config))
