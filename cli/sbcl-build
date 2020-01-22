@@ -1,1 +1,1 @@
-sbcl --load sbu.asd --eval "(ql:quickload :sbu/cli)" --eval "(sb-ext:save-lisp-and-die #+win32 #p\"sbu.exe\" #-win32 #p\"sbu\" :toplevel #'sbu/cli:main :executable t)"
+sbcl --load ../sbu.asd --eval "(ql:quickload :sbu/cli)" --eval "(sb-ext:save-lisp-and-die #+win32 #p\"sbu.exe\" #-win32 #p\"sbu\" :toplevel #'sbu/cli:main :executable t)"
