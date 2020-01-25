@@ -311,3 +311,13 @@ The following warnings occurred:~%~{~a~%~}~]")
             (let ((sbu:*backup-file-callback* #'backup-file-callback)
                   (sbu:*backup-game-callback* #'backup-game-callback))
               (sbu:backup-all (games interface)))))))))
+
+(capi:define-interface config-window ()
+  ()
+  (:panes
+   (backup-path capi:text-input-pane :title "Backup Path")
+   (backup-frequency capi:text-input-pane :title "Backup Frequency")
+   (backups-to-keep capi:text-input-pane :title "Backups to Keep"))
+  (:layouts
+   (main-layout capi:column-layout '(backup-path backup-frequency backups-to-keep)))
+  (:default-initargs :title "Settings"))
