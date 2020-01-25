@@ -9,8 +9,11 @@
   ((game-title-width :initarg :game-title-width :initform 20)
    (button-width :initarg :button-width :initform 15)
    (games :initarg :games
-          :initform (make-hash-table :test 'equal)
-          :reader games))
+          :initform (dict)
+          :reader games)
+   (config :initarg :config
+           :initform (dict)
+           :reader config))
   (:panes
    (list-buttons capi:push-button-panel
                  :items (list backup-all-button backup-button remove-button)
@@ -80,6 +83,15 @@
                        game-save-glob
                        save-button)
                      :adjust :right))
+  (:menus
+   (file-menu "File"
+              (("Settings" :selection-callback (lambda (data interface)
+                                                 (declare (ignore data))
+                                                 (open-config-window interface)))
+               ("Quit" :selection-callback (lambda (data interface)
+                                             (declare (ignore data))
+                                             (capi:destroy interface))))))
+  (:menu-bar file-menu)
   (:default-initargs :title "Save Backup"
                      :internal-border 5))
 
@@ -153,7 +165,8 @@
       (select-new interface))))
 
 (defun start ()
-  (capi:display (make-instance 'window :games (sbu:load-games))))
+  (capi:display (make-instance 'window :games (sbu:load-games)
+                                       :config (sbu:load-config))))
 
 (capi:define-interface progress-window ()
   ((game-name :initarg :game-name :initform (error "game name is required"))
@@ -199,10 +212,11 @@ The following warnings occurred:~%~{~a~%~}~]")
                           (- tz)
                           warnings)))
 
-(defun push-warning (restart-function warnings)
-  `(lambda (condition)
-     (push (format nil "~a" condition) ,warnings)
-     (funcall ',restart-function condition)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun push-warning (restart-function warnings)
+    `(lambda (condition)
+       (push (format nil "~a" condition) ,warnings)
+       (funcall ',restart-function condition))))
 
 (defmacro push-backup-game-warning (warnings)
   (push-warning 'sbu:treat-backup-as-complete warnings))
@@ -215,7 +229,7 @@ The following warnings occurred:~%~{~a~%~}~]")
 
 (defun backup (interface)
   (bind (warnings
-         ((:slots games game-list) interface)
+         ((:slots games config game-list) interface)
          (selected-id (capi:choice-selection game-list))
          (selected-game-name (capi:get-collection-item game-list selected-id))
          (game-data (assoc selected-game-name (hash-table-alist games)))
@@ -242,7 +256,13 @@ The following warnings occurred:~%~{~a~%~}~]")
                        (sbu:backup-file-error (push-backup-file-warning warnings))
                        (sbu:clean-up-error (push-clean-up-warning warnings)))
           (let ((sbu:*backup-file-callback* #'backup-file-callback)
-                (sbu:*backup-game-callback* #'backup-game-callback))
+                (sbu:*backup-game-callback* #'backup-game-callback)
+                (sbu:*backup-frequency* (or (@ config :backup-frequency)
+                                            sbu:*backup-frequency*))
+                (sbu:*backup-path* (or (@ config :backup-path)
+                                       sbu:*backup-path*))
+                (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
+                                           sbu:*backups-to-keep*)))
             (sbu:backup-game game-data)))))))
 
 (capi:define-interface multiple-progress-window ()
@@ -278,6 +298,7 @@ The following warnings occurred:~%~{~a~%~}~]")
 (defun backup-all (interface)
   (when-let ((games-alist (hash-table-alist (games interface))))
     (let* ((total-seconds 0)
+           (config (config interface))
            warnings
            (multi-progress-window (capi:display
                                    (make-instance 'multiple-progress-window
@@ -309,5 +330,61 @@ The following warnings occurred:~%~{~a~%~}~]")
                          (sbu:backup-file-error (push-backup-file-warning warnings))
                          (sbu:clean-up-error (push-clean-up-warning warnings)))
             (let ((sbu:*backup-file-callback* #'backup-file-callback)
-                  (sbu:*backup-game-callback* #'backup-game-callback))
+                  (sbu:*backup-game-callback* #'backup-game-callback)
+                  (sbu:*backup-frequency* (or (@ config :backup-frequency)
+                                              sbu:*backup-frequency*))
+                  (sbu:*backup-path* (or (@ config :backup-path)
+                                         sbu:*backup-path*))
+                  (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
+                                             sbu:*backups-to-keep*)))
               (sbu:backup-all (games interface)))))))))
+
+(capi:define-interface config-window ()
+  ((title-width :initarg :title-width :initform 20)
+   (config :initarg :config :initform (error "config required for config window")))
+  (:panes
+   (backup-path capi:text-input-pane
+                :title "Backup Path"
+                :file-completion t
+                :directories-only t
+                :buttons '(:ok nil
+                           :browse-file (:directory t))
+                :title-args `(:visible-min-width (:character ,title-width)))
+   (backup-frequency capi:text-input-pane
+                     :title "Backup Frequency"
+                     :title-args `(:visible-min-width (:character ,title-width)))
+   (backups-to-keep capi:text-input-pane
+                    :title "Backups to Keep"
+                    :title-args `(:visible-min-width (:character ,title-width)))
+   (buttons capi:push-button-panel
+            :items '(:save :close)
+            :default-button :save
+            :selection-callback 'config-buttons-callback
+            :print-function 'string-capitalize))
+  (:layouts
+   (main-layout capi:column-layout '(backup-path backup-frequency backups-to-keep buttons)))
+  (:default-initargs :title "Settings"))
+
+(defun open-config-window (interface)
+  (bind ((window (make-instance 'config-window :config (config interface)))
+         ((:slots backup-path backup-frequency backups-to-keep) window)
+         ((:accessors config) interface))
+    (setf (capi:text-input-pane-text backup-path) (@ config :backup-path)
+          (capi:text-input-pane-text backup-frequency) (write-to-string (@ config :backup-frequency))
+          (capi:text-input-pane-text backups-to-keep) (write-to-string (@ config :backups-to-keep)))
+    (capi:display window)))
+
+(defun config-buttons-callback (data interface)
+  (case data
+    (:save
+     (with-slots (backup-path backup-frequency backups-to-keep config) interface
+       (sbu:save-config (dict* config
+                               :backup-frequency (or (parse-integer (capi:text-input-pane-text backup-frequency)
+                                                                    :junk-allowed t)
+                                                     (@ config :backup-frequency))
+                               :backup-path (capi:text-input-pane-text backup-path)
+                               :backups-to-keep (or (parse-integer (capi:text-input-pane-text backups-to-keep)
+                                                                   :junk-allowed t)
+                                                    (@ config :backups-to-keep))))
+       (capi:destroy interface)))
+    (:close (capi:destroy interface))))
