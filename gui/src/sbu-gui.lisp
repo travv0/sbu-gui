@@ -357,7 +357,8 @@ The following warnings occurred:~%~{~a~%~}~]")
             :print-function 'string-capitalize))
   (:layouts
    (main-layout capi:column-layout '(backup-path backups-to-keep buttons)))
-  (:default-initargs :title "Settings"))
+  (:default-initargs :title "Settings"
+                     :min-width 400))
 
 (defun open-config-window (interface)
   (bind ((window (make-instance 'config-window :config (config interface)))
