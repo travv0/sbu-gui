@@ -175,6 +175,14 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~@[
 
 The following warnings occurred:~%~{~a~%~}~]")
 
+(defparameter *day-names*
+  '("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"))
+
+(defparameter *month-names*
+  '("Jan" "Feb" "Mar" "Apr" "May"
+    "Jun" "Jul" "Aug" "Sep" "Oct"
+    "Nov" "Dec"))
+
 (defun display-completed-message (game-name time-completed seconds-passed warnings)
   (bind (((:values second minute hour date month year day-of-week _ tz)
           (decode-universal-time time-completed)))
@@ -191,19 +199,10 @@ The following warnings occurred:~%~{~a~%~}~]")
                           (- tz)
                           warnings)))
 
-(defparameter *day-names*
-  '("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"))
-
-(defparameter *month-names*
-  '("Jan" "Feb" "Mar" "Apr" "May"
-    "Jun" "Jul" "Aug" "Sep" "Oct"
-    "Nov" "Dec"))
-
-(eval-when (:compile-toplevel)
-  (defun push-warning (restart-function warnings)
-    `(lambda (condition)
-       (push (format nil "~a" condition) ,warnings)
-       (funcall ',restart-function condition))))
+(defun push-warning (restart-function warnings)
+  `(lambda (condition)
+     (push (format nil "~a" condition) ,warnings)
+     (funcall ',restart-function condition)))
 
 (defmacro push-backup-game-warning (warnings)
   (push-warning 'sbu:treat-backup-as-complete warnings))
