@@ -228,9 +228,7 @@ The following warnings occurred:~%~{~a~%~}~]")
   (push-warning 'sbu:skip-clean-up warnings))
 
 (defmacro with-config (config &body body)
-  `(let ((sbu:*backup-frequency* (or (@ ,config :backup-frequency)
-                                     sbu:*backup-frequency*))
-         (sbu:*backup-path* (or (@ ,config :backup-path)
+  `(let ((sbu:*backup-path* (or (@ ,config :backup-path)
                                 sbu:*backup-path*))
          (sbu:*backups-to-keep* (or (@ ,config :backups-to-keep)
                                     sbu:*backups-to-keep*)))
@@ -349,9 +347,6 @@ The following warnings occurred:~%~{~a~%~}~]")
                 :buttons '(:ok nil
                            :browse-file (:directory t))
                 :title-args `(:visible-min-width (:character ,title-width)))
-   (backup-frequency capi:text-input-pane
-                     :title "Backup Frequency"
-                     :title-args `(:visible-min-width (:character ,title-width)))
    (backups-to-keep capi:text-input-pane
                     :title "Backups to Keep"
                     :title-args `(:visible-min-width (:character ,title-width)))
@@ -361,26 +356,22 @@ The following warnings occurred:~%~{~a~%~}~]")
             :selection-callback 'config-buttons-callback
             :print-function 'string-capitalize))
   (:layouts
-   (main-layout capi:column-layout '(backup-path backup-frequency backups-to-keep buttons)))
+   (main-layout capi:column-layout '(backup-path backups-to-keep buttons)))
   (:default-initargs :title "Settings"))
 
 (defun open-config-window (interface)
   (bind ((window (make-instance 'config-window :config (config interface)))
-         ((:slots backup-path backup-frequency backups-to-keep) window)
+         ((:slots backup-path backups-to-keep) window)
          ((:accessors config) interface))
     (setf (capi:text-input-pane-text backup-path) (@ config :backup-path)
-          (capi:text-input-pane-text backup-frequency) (write-to-string (@ config :backup-frequency))
           (capi:text-input-pane-text backups-to-keep) (write-to-string (@ config :backups-to-keep)))
     (capi:display window)))
 
 (defun config-buttons-callback (data interface)
   (case data
     (:save
-     (with-slots (backup-path backup-frequency backups-to-keep config) interface
+     (with-slots (backup-path backups-to-keep config) interface
        (sbu:save-config (dict* config
-                               :backup-frequency (or (parse-integer (capi:text-input-pane-text backup-frequency)
-                                                                    :junk-allowed t)
-                                                     (@ config :backup-frequency))
                                :backup-path (capi:text-input-pane-text backup-path)
                                :backups-to-keep (or (parse-integer (capi:text-input-pane-text backups-to-keep)
                                                                    :junk-allowed t)
