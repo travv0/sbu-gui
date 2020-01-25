@@ -191,7 +191,8 @@
   (restart-case
       (handler-case
           (bind ((save-path (cl-fad:pathname-as-directory save-path))
-                 (backup-path (path:catdir *backup-path* (cl-fad:pathname-as-directory game-name)))
+                 (backup-path (path:catdir (cl-fad:pathname-as-directory *backup-path*)
+                                           (cl-fad:pathname-as-directory game-name)))
                  (relative-save-path (subseq (namestring from) (length (namestring save-path))))
                  (to (path:catfile backup-path relative-save-path))
                  (full-to (backup-file-name from to)))
