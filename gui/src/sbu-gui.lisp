@@ -181,7 +181,8 @@
    (last-file capi:title-pane :max-width width))
   (:layouts
    (main-layout capi:column-layout '(last-file progress-bar)))
-  (:default-initargs :title "Backup Progress"))
+  (:default-initargs :title "Backup Progress"
+		     :internal-border 5))
 
 (defparameter *completed-message-format* "Finished backing up ~a in ~fs ~
 on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~@[
@@ -289,7 +290,8 @@ The following warnings occurred:~%~{~a~%~}~]")
                                      game-progress-bar
                                      last-file
                                      file-progress-bar)))
-  (:default-initargs :title "Backup Progress"))
+  (:default-initargs :title "Backup Progress"
+		     :internal-border 5))
 
 (defmacro zero-if-error (n)
   `(or (ignore-errors ,n) 0))
@@ -356,16 +358,21 @@ The following warnings occurred:~%~{~a~%~}~]")
             :selection-callback 'config-buttons-callback
             :print-function 'string-capitalize))
   (:layouts
-   (main-layout capi:column-layout '(backup-path backups-to-keep buttons)))
+   (main-layout capi:column-layout '(backup-path backups-to-keep buttons)
+		:adjust :right))
   (:default-initargs :title "Settings"
-                     :min-width 400))
+                     :min-width 400
+		     :internal-border 5))
 
 (defun open-config-window (interface)
   (bind ((window (make-instance 'config-window :config (config interface)))
          ((:slots backup-path backups-to-keep) window)
          ((:accessors config) interface))
-    (setf (capi:text-input-pane-text backup-path) (@ config :backup-path)
-          (capi:text-input-pane-text backups-to-keep) (write-to-string (@ config :backups-to-keep)))
+    (setf (capi:text-input-pane-text backup-path) (or (@ config :backup-path)
+						      sbu:*backup-path*)
+          (capi:text-input-pane-text backups-to-keep) (write-to-string
+						       (or (@ config :backups-to-keep)
+							   sbu:*backups-to-keep*)))
     (capi:display window)))
 
 (defun config-buttons-callback (data interface)
