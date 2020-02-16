@@ -176,12 +176,14 @@
    (progress-bar capi:progress-bar
                  :start 0
                  :end file-count
-                 :min-width width
-                 :max-width width)
-   (last-file capi:title-pane :max-width width))
+                 :visible-min-width width
+                 :visible-max-width width)
+   (last-file capi:title-pane :visible-max-width width
+                              :visible-min-width width))
   (:layouts
    (main-layout capi:column-layout '(last-file progress-bar)))
-  (:default-initargs :title "Backup Progress"))
+  (:default-initargs :title "Backup Progress"
+                     :internal-border 5))
 
 (defparameter *completed-message-format* "Finished backing up ~a in ~fs ~
 on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~@[
@@ -275,21 +277,25 @@ The following warnings occurred:~%~{~a~%~}~]")
    (file-progress-bar capi:progress-bar
                       :start 0
                       :end file-count
-                      :min-width width
-                      :max-width width)
+                      :visible-min-width width
+                      :visible-max-width width)
    (game-progress-bar capi:progress-bar
                       :start 0
                       :end game-count
-                      :min-width width
-                      :max-width width)
-   (last-file capi:title-pane :max-width width)
-   (last-game capi:title-pane :max-width width))
+                      :visible-min-width width
+                      :visible-max-width width)
+   (last-file capi:title-pane :visible-max-width width
+                              :visible-min-width width)
+   (last-game capi:title-pane :visible-max-width width
+                              :visible-min-width width))
   (:layouts
    (main-layout capi:column-layout '(last-game
                                      game-progress-bar
                                      last-file
-                                     file-progress-bar)))
-  (:default-initargs :title "Backup Progress"))
+                                     file-progress-bar)
+                :visible-max-width width))
+  (:default-initargs :title "Backup Progress"
+                     :internal-border 5))
 
 (defmacro zero-if-error (n)
   `(or (ignore-errors ,n) 0))
@@ -358,7 +364,8 @@ The following warnings occurred:~%~{~a~%~}~]")
   (:layouts
    (main-layout capi:column-layout '(backup-path backups-to-keep buttons)))
   (:default-initargs :title "Settings"
-                     :min-width 400))
+                     :visible-min-width 400
+                     :internal-border 5))
 
 (defun open-config-window (interface)
   (bind ((window (make-instance 'config-window :config (config interface)))
