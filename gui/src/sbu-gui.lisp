@@ -292,8 +292,7 @@ The following warnings occurred:~%~{~a~%~}~]")
    (main-layout capi:column-layout '(last-game
                                      game-progress-bar
                                      last-file
-                                     file-progress-bar)
-                :visible-max-width width))
+                                     file-progress-bar)))
   (:default-initargs :title "Backup Progress"
                      :internal-border 5))
 
@@ -362,7 +361,8 @@ The following warnings occurred:~%~{~a~%~}~]")
             :selection-callback 'config-buttons-callback
             :print-function 'string-capitalize))
   (:layouts
-   (main-layout capi:column-layout '(backup-path backups-to-keep buttons)))
+   (main-layout capi:column-layout '(backup-path backups-to-keep buttons)
+                :adjust :right))
   (:default-initargs :title "Settings"
                      :visible-min-width 400
                      :internal-border 5))
@@ -371,8 +371,11 @@ The following warnings occurred:~%~{~a~%~}~]")
   (bind ((window (make-instance 'config-window :config (config interface)))
          ((:slots backup-path backups-to-keep) window)
          ((:accessors config) interface))
-    (setf (capi:text-input-pane-text backup-path) (@ config :backup-path)
-          (capi:text-input-pane-text backups-to-keep) (write-to-string (@ config :backups-to-keep)))
+    (setf (capi:text-input-pane-text backup-path) (or (@ config :backup-path)
+						      sbu:*backup-path*)
+          (capi:text-input-pane-text backups-to-keep) (write-to-string
+						       (or (@ config :backups-to-keep)
+							   sbu:*backups-to-keep*)))
     (capi:display window)))
 
 (defun config-buttons-callback (data interface)
