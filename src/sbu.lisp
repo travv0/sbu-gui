@@ -1,5 +1,6 @@
 (defpackage :sbu
-  (:use #:cl #:alexandria #:serapeum #:metabang-bind)
+  (:use #:cl #:metabang-bind #:defstar)
+  (:import-from #:serapeum #:~> #:~>> #:op)
   (:export #:save-games
            #:load-games
            #:save-config
@@ -33,6 +34,8 @@
            #:treat-file-as-copied
            #:skip-clean-up))
 
+(setf defstar:*check-argument-types-explicitly?* t)
+
 (in-package :sbu)
 
 (defparameter *games-path* "~/.sbugames")
@@ -63,15 +66,16 @@
              (format stream "Could not load config from ~a"
                      (file-error-pathname condition)))))
 
-(defun save-games (games)
+(defun* (save-games -> list) ((games list))
   (save-config games *games-path*))
 
-(defun load-games ()
+(defun* (load-games -> hash-table) ()
   (load-config *games-path*))
 
-(defun save-config (config &optional (pathname *config-path*))
+(defun* (save-config -> list) ((config hash-table)
+                               &optional ((pathname (or string pathname)) *config-path*))
   (handler-case
-      (let ((game-alist (hash-table-alist config)))
+      (let ((game-alist (alexandria:hash-table-alist config)))
         (with-open-file (out pathname
                              :direction :output
                              :if-exists :supersede)
@@ -81,23 +85,23 @@
     (error ()
       (error 'save-config-error :path pathname))))
 
-(defun load-config (&optional (pathname *config-path*))
+(defun* (load-config -> hash-table) (&optional ((pathname (or string pathname)) *config-path*))
   (handler-case
       (if (probe-file pathname)
           (with-open-file (in pathname)
-            (with-standard-input-syntax
-              (alist-hash-table (read in) :test 'equal)))
+            (serapeum:with-standard-input-syntax
+              (alexandria:alist-hash-table (read in) :test 'equal)))
           (make-hash-table :test 'equal))
     (stream-error ()
       (error 'bad-config-format-error
-             :contents (read-file-into-string pathname)
+             :contents (alexandria:read-file-into-string pathname)
              :pathname pathname))
     (error ()
       (error 'load-config-error :pathname pathname))))
 
-(defun backup-all (games)
+(defun* (backup-all -> list) ((games hash-table))
   (~>> games
-       hash-table-alist
+       alexandria:hash-table-alist
        (mapcar 'backup-game)))
 
 (define-condition backup-error (sbu-error)
@@ -187,7 +191,10 @@
 
 (defparameter *backup-file-callback* nil)
 
-(defun backup-file (game-name save-path from &key count-only)
+(defun* (backup-file -> fixnum) ((game-name string)
+                                 (save-path (or string pathname))
+                                 (from (or string pathname))
+                                 &key count-only)
   (restart-case
       (handler-case
           (bind ((save-path (cl-fad:pathname-as-directory save-path))
@@ -228,15 +235,15 @@
 
 (defparameter *clean-up-callback* nil)
 
-(defun clean-up (file-path)
+(defun* clean-up ((file-path (or string pathname)))
   (restart-case
       (handler-case
-          (let ((files (directory (string+ file-path ".bak.*_*_*_*_*_*"))))
+          (let ((files (directory (serapeum:string+ file-path ".bak.*_*_*_*_*_*"))))
             (when (> (length files) *backups-to-keep*)
-              (let ((files-to-delete (drop *backups-to-keep*
-                                           (sort files (lambda (f1 f2)
-                                                         (> (file-write-date f1)
-                                                            (file-write-date f2)))))))
+              (let ((files-to-delete (serapeum:drop *backups-to-keep*
+                                                    (sort files (lambda (f1 f2)
+                                                                  (> (file-write-date f1)
+                                                                     (file-write-date f2)))))))
                 (mapcar #'delete-file files-to-delete)
                 (when *clean-up-callback*
                   (funcall *clean-up-callback* files-to-delete)))))
@@ -244,12 +251,16 @@
           (error 'clean-up-error :pathname file-path)))
     (skip-clean-up () nil)))
 
-(defun save-game (games game-name game-save-path game-save-glob &optional old-game-name)
+(defun* (save-game -> list) ((games hash-table)
+                             (game-name string)
+                             (game-save-path (or string pathname))
+                             (game-save-glob string)
+                             &optional ((old-game-name (or string null)) nil))
   (remhash old-game-name games)
   (setf (gethash game-name games) `(:save-path ,game-save-path
                                     :save-glob ,game-save-glob))
   (save-games games))
 
-(defun remove-game (games game-name)
+(defun* (remove-game -> list) ((games hash-table) (game-name string))
   (remhash game-name games)
   (save-games games))

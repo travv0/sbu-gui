@@ -5,7 +5,8 @@
   :depends-on (:travv0.utils
                :serapeum
                :metabang-bind
-               :cl-fad)
+               :cl-fad
+               :defstar)
   :components ((:file "sbu")))
 
 (asdf:defsystem #:sbu/gui
