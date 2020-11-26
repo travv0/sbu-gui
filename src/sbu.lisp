@@ -1,5 +1,6 @@
 (defpackage :sbu
   (:use #:cl #:metabang-bind #:defstar)
+  (:local-nicknames (#:tu #:travv0.utils))
   (:import-from #:serapeum #:~> #:~>> #:op)
   (:export #:save-games
            #:load-games
@@ -66,7 +67,7 @@
              (format stream "Could not load config from ~a"
                      (file-error-pathname condition)))))
 
-(defun* (save-games -> list) ((games list))
+(defun* (save-games -> list) ((games hash-table))
   (save-config games *games-path*))
 
 (defun* (load-games -> hash-table) ()
@@ -220,8 +221,9 @@
                                     :pathname from)))
     (skip-file () 1)
     (treat-file-as-copied ()
-      (when *backup-file-callback*
-        (funcall *backup-file-callback* from nil)))))
+      (if *backup-file-callback*
+          (funcall *backup-file-callback* from nil)
+          1))))
 
 (define-condition clean-up-error (sbu-error file-error)
   ()

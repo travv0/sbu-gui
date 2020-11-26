@@ -3,6 +3,7 @@
         #:serapeum
         #:metabang-bind
         #:alexandria)
+  (:local-nicknames (#:tu #:travv0.utils))
   (:export #:main))
 
 (in-package :sbu/cli)
