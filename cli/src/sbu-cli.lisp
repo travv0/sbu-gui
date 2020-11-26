@@ -177,7 +177,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
             game-name
             seconds-passed
             (nth day-of-week *day-names*)
-            (nth month *month-names*)
+            (nth (1- month) *month-names*)
             date
             year
             hour

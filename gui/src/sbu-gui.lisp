@@ -205,7 +205,7 @@ The following warnings occurred:~%~{~a~%~}~]")
                           game-name
                           seconds-passed
                           (nth day-of-week *day-names*)
-                          (nth month *month-names*)
+                          (nth (1- month) *month-names*)
                           date
                           year
                           hour
