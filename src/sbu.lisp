@@ -1,6 +1,6 @@
 (defpackage :sbu
   (:use #:cl #:metabang-bind #:defstar)
-  (:local-nicknames (#:tu #:travv0.utils))
+  (:import-from #:travv0.utils #:fn)
   (:import-from #:serapeum #:~> #:~>> #:op)
   (:export #:save-games
            #:load-games
@@ -132,7 +132,7 @@
 
 (defparameter *backup-game-callback* nil)
 
-(tu:desfun backup-game ((game-name . (&key save-path save-glob)) &key count-only)
+(fn backup-game ((game-name . (&key save-path save-glob)) &key count-only)
   (let ((start-time (get-internal-real-time))
         (file-count 0))
     (flet ((complete-callback ()

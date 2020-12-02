@@ -3,7 +3,6 @@
         #:serapeum
         #:metabang-bind
         #:alexandria)
-  (:local-nicknames (#:tu #:travv0.utils))
   (:export #:main))
 
 (in-package :sbu/cli)
@@ -233,7 +232,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
           (let ((*debugger-hook* (if *application-catch-errors*
                                      #'error-and-abort
                                      *debugger-hook*))
-                (*program-name* (file-namestring (or (first (tu:get-command-line-args))
+                (*program-name* (file-namestring (or (first (uiop:raw-command-line-arguments))
                                                      *program-name*))))
             (opts:define-opts
               (:name :games-path
@@ -250,7 +249,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                :meta-var "PROGRAM_CONFIG_PATH"))
 
             (let* ((full-args (or (and args (cons nil args))
-                                  (tu:get-command-line-args)))
+                                  (uiop:raw-command-line-arguments)))
                    (commands (hash-table-keys *commands*))
                    (command-position (position-if (op (position _ commands :test #'string=))
                                                   full-args)))
