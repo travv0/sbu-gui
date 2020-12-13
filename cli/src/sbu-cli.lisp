@@ -202,15 +202,8 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                          :args (get-command-free-args command))
           (handler-case
               (bind ((command-function (get-command-function command))
-                     ((:values options free-args) (when args (opts:get-opts args))))
-                (handler-bind
-                    ((sbu:backup-file-error (print-warning #'sbu:skip-file))
-                     (sbu:backup-game-error (print-warning #'sbu:skip-game))
-                     (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
-                  (let ((sbu:*backup-file-callback* 'backup-file-callback)
-                        (sbu:*backup-game-callback* 'backup-game-callback)
-                        (sbu:*clean-up-callback* 'clean-up-callback))
-                    (funcall command-function options free-args))))
+                     ((:values options free-args) (opts:get-opts args)))
+                (funcall command-function options free-args))
             (opts::troublesome-option (condition)
               (opts:describe :usage-of (when application-name
                                          (format nil "~a ~a" application-name command))
@@ -271,7 +264,14 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                     (if (null args)
                         (describe-commands :usage-of *program-name*)
                         (bind (((subcommand . opts) args))
-                          (handle-command subcommand opts *program-name*))))
+                          (handler-bind
+                              ((sbu:backup-file-error (print-warning #'sbu:skip-file))
+                               (sbu:backup-game-error (print-warning #'sbu:skip-game))
+                               (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
+                            (let ((sbu:*backup-file-callback* 'backup-file-callback)
+                                  (sbu:*backup-game-callback* 'backup-game-callback)
+                                  (sbu:*clean-up-callback* 'clean-up-callback))
+                              (handle-command subcommand opts *program-name*))))))
                   (describe-commands :usage-of *program-name*)))))
       (opts::troublesome-option (condition)
         (describe-commands :usage-of *program-name* :prefix condition))
