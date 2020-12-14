@@ -30,4 +30,5 @@
                :travv0.utils
                :metabang-bind
                :alexandria)
-  :components ((:file "sbu-cli")))
+  :components ((:file "opt-commands")
+               (:file "sbu-cli")))
