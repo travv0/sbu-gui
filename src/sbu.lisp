@@ -46,13 +46,14 @@
 (defparameter *backups-to-keep* 10)
 
 (define-condition sbu-error (error)
-  ())
+  ((inner-error :initarg :inner-error :reader inner-error)))
 
 (define-condition save-config-error (sbu-error file-error)
   ()
   (:report (lambda (condition stream)
-             (format stream "Unable to save config to ~a"
-                     (file-error-pathname condition)))))
+             (format stream "Unable to save config to ~a:~%~a"
+                     (file-error-pathname condition)
+                     (inner-error condition)))))
 
 (define-condition bad-config-format-error (sbu-error file-error)
   ((contents :initarg :contents :reader bad-config-format-error-contents))
@@ -64,8 +65,9 @@
 (define-condition load-config-error (sbu-error file-error)
   ()
   (:report (lambda (condition stream)
-             (format stream "Could not load config from ~a"
-                     (file-error-pathname condition)))))
+             (format stream "Could not load config from ~a:~%~a"
+                     (file-error-pathname condition)
+                     (inner-error condition)))))
 
 (defun* (save-games -> list) ((games hash-table))
   (save-config games *games-path*))
@@ -83,8 +85,8 @@
           (with-standard-io-syntax
             (pprint game-alist out)))
         game-alist)
-    (error ()
-      (error 'save-config-error :path pathname))))
+    (error (e)
+      (error 'save-config-error :path pathname :inner-error e))))
 
 (defun* (load-config -> hash-table) (&optional ((pathname (or string pathname)) *config-path*))
   (handler-case
@@ -93,12 +95,13 @@
             (serapeum:with-standard-input-syntax
               (alexandria:alist-hash-table (read in) :test 'equal)))
           (make-hash-table :test 'equal))
-    (stream-error ()
+    (stream-error (e)
       (error 'bad-config-format-error
              :contents (alexandria:read-file-into-string pathname)
-             :pathname pathname))
-    (error ()
-      (error 'load-config-error :pathname pathname))))
+             :pathname pathname
+             :inner-error e))
+    (error (e)
+      (error 'load-config-error :pathname pathname :inner-error e))))
 
 (defun* (backup-all -> list) ((games hash-table))
   (~>> games
@@ -108,15 +111,17 @@
 (define-condition backup-error (sbu-error)
   ((game-name :initarg :game-name :reader backup-error-game-name))
   (:report (lambda (condition stream)
-             (format stream "Unable to back up ~a"
-                     (backup-error-game-name condition)))))
+             (format stream "Unable to back up ~a:~%~a"
+                     (backup-error-game-name condition)
+                     (inner-error condition)))))
 
 (define-condition backup-game-error (backup-error)
   ((game-path :initarg :game-path :reader backup-game-error-game-path))
   (:report (lambda (condition stream)
-             (format stream "Unable to back up game ~a with save path ~a."
+             (format stream "Unable to back up game ~a with save path ~a:~%~a"
                      (backup-error-game-name condition)
-                     (backup-game-error-game-path condition)))))
+                     (backup-game-error-game-path condition)
+                     (inner-error condition)))))
 
 (defun ignore-file (condition)
   (declare (ignore condition))
@@ -162,9 +167,10 @@
                                                                            save-glob))))))
                 (complete-callback)
                 file-count)
-            (error ()
+            (error (e)
               (error 'backup-game-error :game-name game-name
-                                        :game-path save-path)))
+                                        :game-path save-path
+                                        :inner-error e)))
         (skip-game () 1)
         (treat-backup-as-complete ()
           (complete-callback))))))
@@ -172,9 +178,10 @@
 (define-condition backup-file-error (backup-error file-error)
   ()
   (:report (lambda (condition stream)
-             (format stream "Unable to back up file ~a for ~a"
+             (format stream "Unable to back up file ~a for ~a:~%~a"
                      (file-error-pathname condition)
-                     (backup-error-game-name condition)))))
+                     (backup-error-game-name condition)
+                     (inner-error condition)))))
 
 (defun skip-file (condition)
   (declare (ignore condition))
@@ -214,11 +221,10 @@
                 (clean-up to))
               (return-from backup-file 1))
             (return-from backup-file 0))
-        (file-error (condition)
-          (error condition))
-        (error ()
+        (error (e)
           (error 'backup-file-error :game-name game-name
-                                    :pathname from)))
+                                    :pathname from
+                                    :inner-error e)))
     (skip-file () 1)
     (treat-file-as-copied ()
       (if *backup-file-callback*
@@ -228,8 +234,9 @@
 (define-condition clean-up-error (sbu-error file-error)
   ()
   (:report (lambda (condition stream)
-             (format stream "Could not clean up extra backups for ~a"
-                     (file-error-pathname condition)))))
+             (format stream "Could not clean up extra backups for ~a:~%~a"
+                     (file-error-pathname condition)
+                     (inner-error condition)))))
 
 (defun skip-clean-up (condition)
   (declare (ignore condition))
@@ -249,8 +256,8 @@
                 (mapcar #'delete-file files-to-delete)
                 (when *clean-up-callback*
                   (funcall *clean-up-callback* files-to-delete)))))
-        (error ()
-          (error 'clean-up-error :pathname file-path)))
+        (error (e)
+          (error 'clean-up-error :pathname file-path :inner-error e)))
     (skip-clean-up () nil)))
 
 (defun* (save-game -> list) ((games hash-table)
