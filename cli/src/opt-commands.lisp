@@ -32,7 +32,11 @@ free arguments this command accepts."
     `(setf (@ *commands* ,command-name)
            (list :function ,function
                  :description ,description
-                 :free-args (mapcar (op (apply #'make-free-arg :name _)) ',free-args)
+                 :free-args (mapcar (lambda (arg)
+                                      (when (eq (free-arg-count arg) :many)
+                                        (setf (free-arg-name arg) (concat (free-arg-name arg) "...")))
+                                      arg)
+                                    (mapcar (op (apply #'make-free-arg :name _)) ',free-args))
                  :make-opts (lambda ()
                               (opts:define-opts
                                 ,@options
