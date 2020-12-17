@@ -266,6 +266,10 @@
                              (game-save-glob string)
                              &optional ((old-game-name (or string null)) nil))
   (remhash old-game-name games)
+  (let ((backup-dir (path:catfile (cl-fad:pathname-as-directory *backup-path*)
+                                  old-game-name)))
+    (when (and old-game-name (probe-file backup-dir) (not (equal old-game-name game-name)))
+      (rename-file backup-dir game-name)))
   (setf (gethash game-name games) `(:save-path ,game-save-path
                                     :save-glob ,game-save-glob))
   (save-games games))

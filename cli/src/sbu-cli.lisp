@@ -101,7 +101,7 @@
 (defun backup-game-callback (game-name finish-time seconds-passed)
   (bind (((:values second minute hour date month year day-of-week _ tz)
           (decode-universal-time finish-time)))
-    (format t "~%Finished backing up ~a in ~fs ~
+    (format *error-output* "~%Finished backing up ~a in ~fs ~
 on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
             game-name
             seconds-passed
@@ -115,13 +115,13 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
             (- tz))))
 
 (defun clean-up-callback (files)
-  (format t "~%Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
+  (format *error-output* "~%Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
           (length files)
           files))
 
 (defun print-warning (restart-function)
   (lambda (condition)
-    (format t "Warning: ~a~%" condition)
+    (format *error-output* "Warning: ~a~%" condition)
     (funcall restart-function condition)))
 
 (defvar *application-catch-errors* nil)
@@ -219,7 +219,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                             game-name
                             (getf options :path)
                             (or (getf options :glob) ""))
-             (format t "Added ~a.~%~%" game-name)))))
+             (format *error-output* "Added ~a.~%~%" game-name)))))
 
 (defun list-games (options free-args)
   (declare (ignore options free-args))
@@ -254,8 +254,8 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                       (y-or-n-p "(y/n):")))
            (dolist (game free-args)
              (sbu:remove-game games game))
-           (format t "Removed the following games: ~{~a~^, ~}~%~%" free-args))
-          (t (format t "No games removed.~%~%")))))
+           (format *error-output* "Removed the following games: ~{~a~^, ~}~%~%" free-args))
+          (t (format *error-output* "No games removed.~%~%")))))
 
 (defun edit (options free-args)
   (let* ((games (sbu:load-games))
@@ -280,7 +280,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                             (or new-game-path old-game-path)
                             (or new-game-glob old-game-glob "")
                             old-game-name)
-             (format t "Name: ~a~@[ -> ~a~]
+             (format *error-output* "Name: ~a~@[ -> ~a~]
 Save-Path: ~a~@[ -> ~a~]
 Save-Glob: ~a~@[ -> ~a~]~%"
                      old-game-name (getf options :name)
@@ -303,7 +303,7 @@ Save-Glob: ~a~@[ -> ~a~]~%"
       (sbu:save-config (dict :backup-path (or new-backup-path old-backup-path)
                              :backup-frequency (or new-backup-frequency old-backup-frequency)
                              :backups-to-keep (or new-backups-to-keep old-backups-to-keep))))
-    (format t "Backup-Path: ~a~@[ -> ~a~]
+    (format *error-output* "Backup-Path: ~a~@[ -> ~a~]
 Backup-Frequency: ~a~@[ -> ~a~]
 Backups-To-Keep: ~a~@[ -> ~a~]~%~%"
             old-backup-path new-backup-path
