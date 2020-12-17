@@ -187,12 +187,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                               (handle-command subcommand opts *program-name*))))))
                   (describe-commands :usage-of *program-name*)))))
       (opts::troublesome-option (condition)
-        (describe-commands :usage-of *program-name* :prefix condition))
-      (sbu:sbu-error (condition)
-        (format *error-output* "An error has occurred: ~a~%" condition))
-      (file-error (condition)
-        (format *error-output* "An error has occurred with file ~a~%"
-                (file-error-pathname condition))))))
+        (describe-commands :usage-of *program-name* :prefix condition)))))
 
 (defun backup (options free-args)
   (let ((games (sbu:load-games)))
