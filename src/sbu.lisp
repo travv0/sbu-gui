@@ -88,7 +88,7 @@
     (error (e)
       (error 'save-config-error :path pathname :inner-error e))))
 
-(defun* (load-config -> hash-table) (&optional ((pathname (or string pathname)) *config-path*))
+(defun* (load-config -> (values hash-table &optional)) (&optional ((pathname (or string pathname)) *config-path*))
   (handler-case
       (if (probe-file pathname)
           (with-open-file (in pathname)
@@ -199,10 +199,10 @@
 
 (defparameter *backup-file-callback* nil)
 
-(defun* (backup-file -> fixnum) ((game-name string)
-                                 (save-path (or string pathname))
-                                 (from (or string pathname))
-                                 &key count-only)
+(defun* (backup-file -> (values fixnum &optional)) ((game-name string)
+                                                    (save-path (or string pathname))
+                                                    (from (or string pathname))
+                                                    &key count-only)
   (restart-case
       (handler-case
           (bind ((save-path (cl-fad:pathname-as-directory save-path))
