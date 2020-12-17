@@ -1,6 +1,7 @@
 (defpackage :opt-commands
   (:use #:cl #:alexandria #:metabang-bind #:serapeum)
   (:export #:define-command
+           #:remove-command
            #:extra-free-args
            #:missing-free-args
            #:general-args-error
@@ -39,6 +40,9 @@ free arguments this command accepts."
                                  :description "Print this help"
                                  :short #\h
                                  :long "help")))))))
+
+(defun remove-command (command-name)
+  (remhash command-name *commands*))
 
 (define-condition general-args-error (opts::troublesome-option)
   ((error-string :initarg :error-string :reader error-string))
