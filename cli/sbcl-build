@@ -1,1 +1,2 @@
+#!/usr/bin/env sh
 sbcl --load ../sbu.asd --eval "(ql:quickload :sbu/cli)" --eval "(setf sbu/cli::*application-catch-errors* t)" --eval "(sb-ext:save-lisp-and-die #+win32 #p\"sbu.exe\" #-win32 #p\"sbu\" :toplevel #'sbu/cli:main :executable t :save-runtime-options t)"
