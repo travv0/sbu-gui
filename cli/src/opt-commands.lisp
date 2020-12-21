@@ -48,17 +48,17 @@ free arguments this command accepts."
 (defun remove-command (command-name)
   (remhash command-name *commands*))
 
-(define-condition general-args-error (opts::troublesome-option)
+(define-condition general-args-error (opts:troublesome-option)
   ((error-string :initarg :error-string :reader error-string))
   (:report (lambda (condition stream)
              (format stream (error-string condition)))))
 
-(define-condition missing-free-args (opts::troublesome-option)
+(define-condition missing-free-args (opts:troublesome-option)
   ((args :initarg :args :accessor args))
   (:report (lambda (condition stream)
              (format stream "missing arguments: ~{~s~^, ~}" (mapcar #'free-arg-name (args condition))))))
 
-(define-condition extra-free-args (opts::troublesome-option)
+(define-condition extra-free-args (opts:troublesome-option)
   ((args :initarg :args :accessor args))
   (:report (lambda (condition stream)
              (format stream "extra arguments provided: ~{~s~^, ~}" (args condition)))))
@@ -127,7 +127,7 @@ Returns T if command exists, NIL otherwise."
                          (error 'extra-free-args :args (drop max-count free-args)))
                         (t
                          (funcall command-function options free-args))))
-              (opts::troublesome-option (condition)
+              (opts:troublesome-option (condition)
                 (opts:describe :usage-of (when application-name
                                            (format nil "~a ~a" application-name command))
                                :args free-arg-names

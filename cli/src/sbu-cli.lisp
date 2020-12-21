@@ -186,7 +186,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                                   (sbu:*clean-up-callback* 'clean-up-callback))
                               (handle-command subcommand opts *program-name*))))))
                   (describe-commands :usage-of *program-name*)))))
-      (opts::troublesome-option (condition)
+      (opts:troublesome-option (condition)
         (describe-commands :usage-of *program-name* :prefix condition)))))
 
 (defun backup (options free-args)
