@@ -28,6 +28,7 @@
            #:backup-game-error
            #:backup-file-error
            #:clean-up-error
+           #:invalid-name-error
 
            #:skip-game
            #:treat-backup-as-complete
@@ -46,7 +47,7 @@
 (defparameter *backups-to-keep* 10)
 
 (define-condition sbu-error (error)
-  ((inner-error :initarg :inner-error :reader inner-error)))
+  ((inner-error :initarg :inner-error :reader inner-error :initform "")))
 
 (define-condition save-config-error (sbu-error file-error)
   ()
@@ -260,11 +261,28 @@
           (error 'clean-up-error :pathname file-path :inner-error e)))
     (skip-clean-up () nil)))
 
+(define-condition invalid-name-error (sbu-error)
+  ((game-name :initarg :game-name :reader invalid-name-error-game-name))
+  (:report (lambda (condition stream)
+             (format stream "Invalid game name ~a: name must only include ~
+                             alphanumeric characters, underscores, and hyphens.~%~a"
+                     (invalid-name-error-game-name condition)
+                     (inner-error condition)))))
+
+(defun valid-game-name-p (game-name)
+  (every (op (or (char<= #\A _1 #\z)
+                 (char<= #\0 _1 #\9)
+                 (char= _1 #\_)
+                 (char= _1 #\-)))
+         game-name))
+
 (defun* (save-game -> list) ((games hash-table)
                              (game-name string)
                              (game-save-path (or string pathname))
                              (game-save-glob string)
                              &optional ((old-game-name (or string null)) nil))
+  (unless (valid-game-name-p game-name)
+    (error 'invalid-name-error :game-name game-name))
   (remhash old-game-name games)
   (when old-game-name
     (let ((backup-dir (path:catfile (cl-fad:pathname-as-directory *backup-path*)
