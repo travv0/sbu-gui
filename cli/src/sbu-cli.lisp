@@ -116,79 +116,104 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
             (- tz))))
 
 (defun clean-up-callback (files)
-  (format *error-output* "~%Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
-          (length files)
-          files))
+  (when *verbose*
+    (format *error-output* "~%Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
+            (length files)
+            files)))
 
 (defun print-warning (restart-function)
   (lambda (condition)
-    (format *error-output* "Warning: ~a~%" condition)
+    (push condition *warnings*)
+    (format *error-output* "~%Warning: ~a~%" condition)
     (funcall restart-function condition)))
+
+(defvar *warnings* nil
+  "A list of warnings that occur during the execution of the
+  program.")
+
+(defparameter *verbose* nil
+  "Whether to print verbose output.")
 
 (defvar *application-catch-errors* nil)
 
 (defun main (&rest args)
-  (flet ((error-and-abort (condition debugger-hook)
-           (declare (ignore debugger-hook))
-           (format *error-output* "Error: ~a~%" condition)
-           (return-from main)))
-    (handler-case
-        (handler-bind ((opts:unknown-option (lambda (c)
-                                              (declare (ignore c))
-                                              (invoke-restart 'opts:skip-option))))
-          (let ((*debugger-hook* (if *application-catch-errors*
-                                     #'error-and-abort
-                                     *debugger-hook*))
-                (*program-name* (file-namestring (or (first (uiop:raw-command-line-arguments))
-                                                     *program-name*))))
-            (opts:define-opts
-              (:name :games-path
-               :description "Path to games configuration file."
-               :short #\g
-               :long "games-path"
-               :arg-parser #'identity
-               :meta-var "GAMES_CONFIG_PATH")
-              (:name :config-path
-               :description (string+ "Path to " *program-name* " configuration file.")
-               :short #\c
-               :long "config-path"
-               :arg-parser #'identity
-               :meta-var "PROGRAM_CONFIG_PATH"))
+  (let (*warnings*)
+    (flet ((error-and-abort (condition debugger-hook)
+             (declare (ignore debugger-hook))
+             (format *error-output* "Error: ~a~%" condition)
+             (return-from main)))
+      (handler-case
+          (handler-bind ((opts:unknown-option (lambda (c)
+                                                (declare (ignore c))
+                                                (invoke-restart 'opts:skip-option))))
+            (let ((*debugger-hook* (if *application-catch-errors*
+                                       #'error-and-abort
+                                       *debugger-hook*))
+                  (*program-name* (file-namestring (or (first (uiop:raw-command-line-arguments))
+                                                       *program-name*))))
+              (opts:define-opts
+                (:name :games-path
+                 :description "Path to games configuration file."
+                 :short #\g
+                 :long "games-path"
+                 :arg-parser #'identity
+                 :meta-var "GAMES_CONFIG_PATH")
+                (:name :config-path
+                 :description (string+ "Path to " *program-name* " configuration file.")
+                 :short #\c
+                 :long "config-path"
+                 :arg-parser #'identity
+                 :meta-var "PROGRAM_CONFIG_PATH")
+                (:name :verbose
+                 :description "Print verbose output."
+                 :short #\v
+                 :long "verbose"))
 
-            (let* ((full-args (or (and args (cons nil args))
-                                  (uiop:raw-command-line-arguments)))
-                   (commands (commands))
-                   (command-position (position-if (op (position _ commands :test #'string=))
-                                                  full-args)))
-              (if command-position
-                  (let* ((pre-command-args (take command-position full-args))
-                         (options (opts:get-opts pre-command-args))
-                         (games-path (getf options :games-path))
-                         (config-path (getf options :config-path))
-                         (args (drop command-position full-args))
-                         (sbu:*games-path* (or games-path sbu:*games-path*))
-                         (sbu:*config-path* (or config-path sbu:*config-path*))
-                         (config (sbu:load-config))
-                         (sbu:*backup-frequency* (or (@ config :backup-frequency)
-                                                     sbu:*backup-frequency*))
-                         (sbu:*backup-path* (or (@ config :backup-path)
-                                                sbu:*backup-path*))
-                         (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
-                                                    sbu:*backups-to-keep*)))
-                    (if (null args)
-                        (describe-commands :usage-of *program-name*)
-                        (bind (((subcommand . opts) args))
-                          (handler-bind
-                              ((sbu:backup-file-error (print-warning #'sbu:skip-file))
-                               (sbu:backup-game-error (print-warning #'sbu:skip-game))
-                               (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
-                            (let ((sbu:*backup-file-callback* 'backup-file-callback)
-                                  (sbu:*backup-game-callback* 'backup-game-callback)
-                                  (sbu:*clean-up-callback* 'clean-up-callback))
-                              (handle-command subcommand opts *program-name*))))))
-                  (describe-commands :usage-of *program-name*)))))
-      (opts:troublesome-option (condition)
-        (describe-commands :usage-of *program-name* :prefix condition)))))
+              (let* ((full-args (or (and args (cons nil args))
+                                    (uiop:raw-command-line-arguments)))
+                     (commands (commands))
+                     (command-position (position-if (op (position _ commands :test #'string=))
+                                                    full-args)))
+                (if command-position
+                    (let* ((pre-command-args (take command-position full-args))
+                           (options (opts:get-opts pre-command-args))
+                           (games-path (getf options :games-path))
+                           (config-path (getf options :config-path))
+                           (*verbose* (getf options :verbose))
+                           (args (drop command-position full-args))
+                           (sbu:*games-path* (or games-path sbu:*games-path*))
+                           (sbu:*config-path* (or config-path sbu:*config-path*))
+                           (config (sbu:load-config))
+                           (sbu:*backup-frequency* (or (@ config :backup-frequency)
+                                                       sbu:*backup-frequency*))
+                           (sbu:*backup-path* (or (@ config :backup-path)
+                                                  sbu:*backup-path*))
+                           (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
+                                                      sbu:*backups-to-keep*)))
+                      (unwind-protect
+                           (if (null args)
+                               (describe-commands :usage-of *program-name*)
+                               (bind (((subcommand . opts) args))
+                                 (handler-bind
+                                     ((sbu:backup-file-error (print-warning (lambda (c)
+                                                                              (if (find-restart 'sbu:skip-file)
+                                                                                  (sbu:skip-file c)
+                                                                                  (sbu:skip-game c)))))
+                                      (sbu:backup-game-error (print-warning #'sbu:skip-file))
+                                      (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
+                                   (let ((sbu:*backup-file-callback* 'backup-file-callback)
+                                         (sbu:*backup-game-callback* 'backup-game-callback)
+                                         (sbu:*clean-up-callback* 'clean-up-callback))
+                                     (handle-command subcommand opts *program-name*)))))
+                        (when (plusp (length *warnings*))
+                          (format *error-output* "~d warning~:p occurred:~%"
+                                  (length *warnings*))
+                          (if *verbose*
+                              (format *error-output* "~%~{~a~%~%~}" (reverse *warnings*))
+                              (format *error-output* "Pass --verbose flag to print all warnings after program exits~%~%")))))
+                    (describe-commands :usage-of *program-name*)))))
+        (opts:troublesome-option (condition)
+          (describe-commands :usage-of *program-name* :prefix condition))))))
 
 (defun backup (options free-args)
   (let ((games (sbu:load-games)))

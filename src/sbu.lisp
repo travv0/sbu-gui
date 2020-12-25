@@ -150,28 +150,27 @@
                           (/ (- end-time start-time)
                              internal-time-units-per-second))))))
       (restart-case
-          (handler-case
-              (progn
-                (cl-fad:walk-directory save-path
-                                       (op (incf file-count
-                                                 (backup-file game-name save-path _
-                                                              :count-only count-only)))
-                                       :directories :depth-first
-                                       :follow-symlinks nil
-                                       :test (lambda (file)
-                                               (and (not (cl-fad:directory-pathname-p file))
-                                                    (pathname-match-p (cl-fad:pathname-as-file file)
-                                                                      (path:catfile
-                                                                       (cl-fad:pathname-as-directory save-path)
-                                                                       (if (string= (or save-glob "") "")
-                                                                           "**/*"
-                                                                           save-glob))))))
-                (complete-callback)
-                file-count)
-            (error (e)
-              (error 'backup-game-error :game-name game-name
-                                        :game-path save-path
-                                        :inner-error e)))
+          (handler-bind
+              ((error (lambda (e)
+                        (error 'backup-game-error :game-name game-name
+                                                  :game-path save-path
+                                                  :inner-error e))))
+            (cl-fad:walk-directory save-path
+                                   (op (incf file-count
+                                             (backup-file game-name save-path _
+                                                          :count-only count-only)))
+                                   :directories :depth-first
+                                   :follow-symlinks nil
+                                   :test (lambda (file)
+                                           (and (not (cl-fad:directory-pathname-p file))
+                                                (pathname-match-p (cl-fad:pathname-as-file file)
+                                                                  (path:catfile
+                                                                   (cl-fad:pathname-as-directory save-path)
+                                                                   (if (string= (or save-glob "") "")
+                                                                       "**/*"
+                                                                       save-glob))))))
+            (complete-callback)
+            file-count)
         (skip-game () 1)
         (treat-backup-as-complete ()
           (complete-callback))))))
