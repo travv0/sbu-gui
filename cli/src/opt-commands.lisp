@@ -13,7 +13,7 @@
 
 (defstruct free-arg name count required)
 
-(defparameter *commands* (dict)
+(defvar *commands* (dict)
   "Hash table of sub-commands added with the `define-command' macro.")
 
 (defun commands ()
@@ -63,7 +63,8 @@ free arguments this command accepts."
   (:report (lambda (condition stream)
              (format stream "extra arguments provided: ~{~s~^, ~}" (args condition)))))
 
-(defparameter *argument-block-width* 20)
+(defparameter *argument-block-width* 25)
+(defparameter *max-width* 80)
 
 (defun describe-commands (&key prefix suffix usage-of)
   "Print the help screen showing which commands are available.
@@ -75,6 +76,7 @@ how the commands are used."
   (opts:describe :usage-of usage-of
                  :args "COMMAND"
                  :argument-block-width *argument-block-width*
+                 :max-width *max-width*
                  :prefix prefix
                  :suffix (~>> *commands*
                               hash-table-alist
@@ -119,6 +121,7 @@ Returns T if command exists, NIL otherwise."
                                          " ")))
         (if (help-flag-p args)
             (opts:describe :argument-block-width *argument-block-width*
+                           :max-width *max-width*
                            :usage-of (when application-name
                                        (format nil "~a ~a" application-name command))
                            :args free-arg-names)
@@ -135,6 +138,7 @@ Returns T if command exists, NIL otherwise."
                          (funcall command-function options free-args))))
               (opts:troublesome-option (condition)
                 (opts:describe :argument-block-width *argument-block-width*
+                               :max-width *max-width*
                                :usage-of (when application-name
                                            (format nil "~a ~a" application-name command))
                                :args free-arg-names
