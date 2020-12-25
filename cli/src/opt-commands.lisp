@@ -72,12 +72,13 @@ free arguments this command accepts."
 how the commands are used."
   (opts:describe :usage-of usage-of
                  :args "COMMAND"
+                 :argument-block-width 20
                  :prefix prefix
                  :suffix (~>> *commands*
                               hash-table-alist
                               (sort _ #'string-lessp :key #'car)
                               (mapcar (op (list (car _1) (getf (cdr _1) :description))))
-                              (format nil "Available commands:~%~:{~2t~16a~a~%~}~%~@[~a~]"
+                              (format nil "Available commands:~%~:{~2t~21a~a~%~}~%~@[~a~]"
                                       _ suffix))))
 
 (defun set-opts (command)
