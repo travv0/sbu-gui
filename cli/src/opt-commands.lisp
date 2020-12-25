@@ -63,6 +63,8 @@ free arguments this command accepts."
   (:report (lambda (condition stream)
              (format stream "extra arguments provided: ~{~s~^, ~}" (args condition)))))
 
+(defparameter *argument-block-width* 20)
+
 (defun describe-commands (&key prefix suffix usage-of)
   "Print the help screen showing which commands are available.
 
@@ -72,13 +74,15 @@ free arguments this command accepts."
 how the commands are used."
   (opts:describe :usage-of usage-of
                  :args "COMMAND"
-                 :argument-block-width 20
+                 :argument-block-width *argument-block-width*
                  :prefix prefix
                  :suffix (~>> *commands*
                               hash-table-alist
                               (sort _ #'string-lessp :key #'car)
-                              (mapcar (op (list (car _1) (getf (cdr _1) :description))))
-                              (format nil "Available commands:~%~:{~2t~21a~a~%~}~%~@[~a~]"
+                              (mapcar (op (list (1+ *argument-block-width*)
+                                                (car _1)
+                                                (getf (cdr _1) :description))))
+                              (format nil "Available commands:~%~:{~2t~va~a~%~}~%~@[~a~]"
                                       _ suffix))))
 
 (defun set-opts (command)
@@ -114,7 +118,8 @@ Returns T if command exists, NIL otherwise."
       (let ((free-arg-names (string-join (mapcar #'free-arg-name (get-command-free-args command))
                                          " ")))
         (if (help-flag-p args)
-            (opts:describe :usage-of (when application-name
+            (opts:describe :argument-block-width *argument-block-width*
+                           :usage-of (when application-name
                                        (format nil "~a ~a" application-name command))
                            :args free-arg-names)
             (handler-case
@@ -129,7 +134,8 @@ Returns T if command exists, NIL otherwise."
                         (t
                          (funcall command-function options free-args))))
               (opts:troublesome-option (condition)
-                (opts:describe :usage-of (when application-name
+                (opts:describe :argument-block-width *argument-block-width*
+                               :usage-of (when application-name
                                            (format nil "~a ~a" application-name command))
                                :args free-arg-names
                                :prefix (format nil "Error: ~a" condition))))))
