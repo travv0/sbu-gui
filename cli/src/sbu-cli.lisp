@@ -18,7 +18,7 @@
              :short #\l
              :long "loop")
             (:name :verbose
-             :description "Print verbose output."
+             :description "Print verbose output"
              :short #\v
              :long "verbose")))
 
@@ -212,25 +212,25 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
           (sbu:*backup-game-callback* #'backup-game-callback)
           (sbu:*backup-file-callback* #'backup-file-callback)
           (sbu:*clean-up-callback* #'clean-up-callback))
-      (unwind-protect
-           (progn (loop
-                    (if (null free-args)
-                        (sbu:backup-all games)
-                        (~>> games
-                             hash-table-alist
-                             (remove-if-not (op (position (car _)
-                                                          free-args
-                                                          :test 'equal)))
-                             (mapcar #'sbu:backup-game)))
-                    (unless (getf options :loop)
-                      (return))
-                    (sleep (* 60 sbu:*backup-frequency*))))
-        (when (plusp (length *warnings*))
-          (format *error-output* "~d warning~:p occurred:~%"
-                  (length *warnings*))
-          (if *verbose*
-              (format *error-output* "~%~{~a~%~%~}" (reverse *warnings*))
-              (format *error-output* "Pass --verbose flag to print all warnings after program exits~%~%")))))))
+      (loop
+        (unwind-protect
+             (if (null free-args)
+                 (sbu:backup-all games)
+                 (~>> games
+                      hash-table-alist
+                      (remove-if-not (op (position (car _)
+                                                   free-args
+                                                   :test 'equal)))
+                      (mapcar #'sbu:backup-game)))
+          (when (plusp (length *warnings*))
+            (format *error-output* "~d warning~:p occurred:~%"
+                    (length *warnings*))
+            (if *verbose*
+                (format *error-output* "~%~{~a~%~%~}" (reverse *warnings*))
+                (format *error-output* "Pass --verbose flag to print all warnings after backup completes~%~%"))))
+        (unless (getf options :loop)
+          (return))
+        (sleep (* 60 sbu:*backup-frequency*))))))
 
 (defun add (options free-args)
   (let* ((games (sbu:load-games))
