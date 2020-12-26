@@ -16,7 +16,11 @@
   :options ((:name :loop
              :description "Keep running, backing up games at the interval specified in your config file"
              :short #\l
-             :long "loop")))
+             :long "loop")
+            (:name :verbose
+             :description "Print verbose output."
+             :short #\v
+             :long "verbose")))
 
 (define-command ("add" 'add "Add a new game to back up.")
   :free-args (("GAME" :required t))
@@ -163,11 +167,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                  :short #\c
                  :long "config-path"
                  :arg-parser #'identity
-                 :meta-var "PROGRAM_CONFIG_PATH")
-                (:name :verbose
-                 :description "Print verbose output."
-                 :short #\v
-                 :long "verbose"))
+                 :meta-var "PROGRAM_CONFIG_PATH"))
 
               (let* ((full-args (or (and args (cons nil args))
                                     (uiop:raw-command-line-arguments)))
@@ -179,7 +179,6 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                            (options (opts:get-opts pre-command-args))
                            (games-path (getf options :games-path))
                            (config-path (getf options :config-path))
-                           (*verbose* (getf options :verbose))
                            (args (drop command-position full-args))
                            (sbu:*games-path* (or games-path sbu:*games-path*))
                            (sbu:*config-path* (or config-path sbu:*config-path*))
@@ -190,45 +189,48 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                                                   sbu:*backup-path*))
                            (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
                                                       sbu:*backups-to-keep*)))
-                      (unwind-protect
-                           (if (null args)
-                               (describe-commands :usage-of *program-name*)
-                               (bind (((subcommand . opts) args))
-                                 (handler-bind
-                                     ((sbu:backup-file-error (print-warning (lambda (c)
-                                                                              (if (find-restart 'sbu:skip-file)
-                                                                                  (sbu:skip-file c)
-                                                                                  (sbu:skip-game c)))))
-                                      (sbu:backup-game-error (print-warning #'sbu:skip-file))
-                                      (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
-                                   (let ((sbu:*backup-file-callback* 'backup-file-callback)
-                                         (sbu:*backup-game-callback* 'backup-game-callback)
-                                         (sbu:*clean-up-callback* 'clean-up-callback))
-                                     (handle-command subcommand opts *program-name*)))))
-                        (when (plusp (length *warnings*))
-                          (format *error-output* "~d warning~:p occurred:~%"
-                                  (length *warnings*))
-                          (if *verbose*
-                              (format *error-output* "~%~{~a~%~%~}" (reverse *warnings*))
-                              (format *error-output* "Pass --verbose flag to print all warnings after program exits~%~%")))))
+                      (if (null args)
+                          (describe-commands :usage-of *program-name*)
+                          (bind (((subcommand . opts) args))
+                            (handle-command subcommand opts *program-name*))))
                     (describe-commands :usage-of *program-name*)))))
         (opts:troublesome-option (condition)
           (describe-commands :usage-of *program-name* :prefix condition))))))
 
 (defun backup (options free-args)
-  (let ((games (sbu:load-games)))
-    (loop
-      (if (null free-args)
-          (sbu:backup-all games)
-          (~>> games
-               hash-table-alist
-               (remove-if-not (op (position (car _)
-                                            free-args
-                                            :test 'equal)))
-               (mapcar #'sbu:backup-game)))
-      (unless (getf options :loop)
-        (return))
-      (sleep (* 60 sbu:*backup-frequency*)))))
+  (handler-bind
+      ((sbu:backup-file-error (print-warning #'sbu:skip-file))
+       (sbu:backup-game-error (lambda (c)
+                                (funcall
+                                 (if (find-restart 'sbu:skip-file)
+                                     (funcall (print-warning #'sbu:skip-file)
+                                              (sbu:inner-error c))
+                                     (funcall (print-warning #'sbu:skip-game) c)))))
+       (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
+    (let ((games (sbu:load-games))
+          (*verbose* (getf options :verbose))
+          (sbu:*backup-game-callback* #'backup-game-callback)
+          (sbu:*backup-file-callback* #'backup-file-callback)
+          (sbu:*clean-up-callback* #'clean-up-callback))
+      (unwind-protect
+           (progn (loop
+                    (if (null free-args)
+                        (sbu:backup-all games)
+                        (~>> games
+                             hash-table-alist
+                             (remove-if-not (op (position (car _)
+                                                          free-args
+                                                          :test 'equal)))
+                             (mapcar #'sbu:backup-game)))
+                    (unless (getf options :loop)
+                      (return))
+                    (sleep (* 60 sbu:*backup-frequency*))))
+        (when (plusp (length *warnings*))
+          (format *error-output* "~d warning~:p occurred:~%"
+                  (length *warnings*))
+          (if *verbose*
+              (format *error-output* "~%~{~a~%~%~}" (reverse *warnings*))
+              (format *error-output* "Pass --verbose flag to print all warnings after program exits~%~%")))))))
 
 (defun add (options free-args)
   (let* ((games (sbu:load-games))

@@ -30,6 +30,8 @@
            #:clean-up-error
            #:invalid-name-error
 
+           #:inner-error
+
            #:skip-game
            #:treat-backup-as-complete
            #:skip-file
@@ -138,13 +140,17 @@
 
 (defparameter *backup-game-callback* nil)
 
-(fn backup-game ((game-name . (&key save-path save-glob)) &key count-only)
+(fn backup-game ((game-name . (&key save-path save-glob))
+                 &key count-only
+                 (backup-game-callback *backup-game-callback*)
+                 (backup-file-callback *backup-file-callback*)
+                 (clean-up-callback *clean-up-callback*))
   (let ((start-time (get-internal-real-time))
         (file-count 0))
     (flet ((complete-callback ()
              (bind ((end-time (get-internal-real-time)))
-               (when (and (not count-only) *backup-game-callback*)
-                 (funcall *backup-game-callback*
+               (when (and (not count-only) backup-game-callback)
+                 (funcall backup-game-callback
                           game-name
                           (get-universal-time)
                           (/ (- end-time start-time)
@@ -158,7 +164,9 @@
             (cl-fad:walk-directory save-path
                                    (op (incf file-count
                                              (backup-file game-name save-path _
-                                                          :count-only count-only)))
+                                                          :count-only count-only
+                                                          :backup-file-callback backup-file-callback
+                                                          :clean-up-callback clean-up-callback)))
                                    :directories :depth-first
                                    :follow-symlinks nil
                                    :test (lambda (file)
@@ -202,7 +210,9 @@
 (defun* (backup-file -> (values fixnum &optional)) ((game-name string)
                                                     (save-path (or string pathname))
                                                     (from (or string pathname))
-                                                    &key count-only)
+                                                    &key count-only
+                                                    (backup-file-callback *backup-file-callback*)
+                                                    (clean-up-callback *clean-up-callback*))
   (restart-case
       (handler-case
           (bind ((save-path (cl-fad:pathname-as-directory save-path))
@@ -216,9 +226,9 @@
                 (ensure-directories-exist (path:dirname full-to))
                 (cl-fad:copy-file from to :overwrite t)
                 (cl-fad:copy-file to full-to)
-                (when *backup-file-callback*
-                  (funcall *backup-file-callback* from to))
-                (clean-up to))
+                (when backup-file-callback
+                  (funcall backup-file-callback from to))
+                (clean-up to :clean-up-callback clean-up-callback))
               (return-from backup-file 1))
             (return-from backup-file 0))
         (error (e)
@@ -227,8 +237,8 @@
                                     :inner-error e)))
     (skip-file () 1)
     (treat-file-as-copied ()
-      (if *backup-file-callback*
-          (funcall *backup-file-callback* from nil)
+      (if backup-file-callback
+          (funcall backup-file-callback from nil)
           1))))
 
 (define-condition clean-up-error (sbu-error file-error)
@@ -244,7 +254,8 @@
 
 (defparameter *clean-up-callback* nil)
 
-(defun* clean-up ((file-path (or string pathname)))
+(defun* clean-up ((file-path (or string pathname))
+                  &key (clean-up-callback *clean-up-callback*))
   (restart-case
       (handler-case
           (let ((files (directory (serapeum:string+ file-path ".bak.*_*_*_*_*_*"))))
@@ -254,8 +265,8 @@
                                                                   (> (file-write-date f1)
                                                                      (file-write-date f2)))))))
                 (mapcar #'delete-file files-to-delete)
-                (when *clean-up-callback*
-                  (funcall *clean-up-callback* files-to-delete)))))
+                (when clean-up-callback
+                  (funcall clean-up-callback files-to-delete)))))
         (error (e)
           (error 'clean-up-error :pathname file-path :inner-error e)))
     (skip-clean-up () nil)))
