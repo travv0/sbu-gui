@@ -271,10 +271,9 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
     (cond ((and (null game-names) free-args)
            (error "Games don't exist: ~{~a~^, ~}" free-args))
           ((or (getf options :yes)
-               (progn (format t "Are you sure you'd like to remove the following games from ~a?
+               (y-or-n-p "Are you sure you'd like to remove the following games from ~a?
 ~{~a~^, ~}~%"
-                              *program-name* free-args)
-                      (y-or-n-p "(y/n):")))
+                         *program-name* free-args))
            (dolist (game free-args)
              (sbu:remove-game games game))
            (format *error-output* "Removed the following games: ~{~a~^, ~}~%~%" free-args))
