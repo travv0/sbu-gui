@@ -5,7 +5,7 @@
         #:alexandria
         #:opt-commands)
   (:local-nicknames (#:tu #:travv0.utils))
-  (:export #:main))
+  (:export #:main #:sbu))
 
 (in-package :sbu/cli)
 
@@ -131,6 +131,20 @@
   "Whether to print verbose output.")
 
 (defvar *application-catch-errors* nil)
+
+(defmacro sbu (&rest options)
+  (apply #'main (unlispify-options options)))
+
+(defun unlispify-options (options)
+  (loop for opt in options
+        collect (typecase opt
+                  (keyword (format nil "~@[-~*~]-~a"
+                                   (> (length (symbol-name opt)) 1)
+                                   (string-downcase (symbol-name opt))))
+                  (string opt)
+                  (pathname (namestring opt))
+                  (symbol (string-downcase opt))
+                  (t (write-to-string opt)))))
 
 (defun main (&rest args)
   (flet ((error-and-abort (condition debugger-hook)
