@@ -254,7 +254,8 @@ The following warnings occurred:~%~{~a~%~}~]")
                (setf (capi:title-pane-text last-file) (namestring from))
                (incf (capi:range-slug-start progress-bar)))
 
-             (backup-game-callback (game-name finish-time seconds-passed)
+             (backup-game-callback (game-name file-count finish-time seconds-passed)
+               (declare (ignore file-count))
                (display-completed-message game-name finish-time seconds-passed warnings)
                (capi:destroy progress-window)))
 

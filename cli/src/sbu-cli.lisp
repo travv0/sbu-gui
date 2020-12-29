@@ -103,21 +103,23 @@
     "Jun" "Jul" "Aug" "Sep" "Oct"
     "Nov" "Dec"))
 
-(defun backup-game-callback (game-name finish-time seconds-passed)
-  (bind (((:values second minute hour date month year day-of-week _ tz)
-          (decode-universal-time finish-time)))
-    (format *error-output* "~%Finished backing up ~a in ~fs ~
+(defun backup-game-callback (game-name file-count finish-time seconds-passed)
+  (when (plusp file-count)
+    (bind (((:values second minute hour date month year day-of-week _ tz)
+            (decode-universal-time finish-time)))
+      (format *error-output* "~%Finished backing up ~d file~:p for ~a in ~fs ~
 on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
-            game-name
-            seconds-passed
-            (nth day-of-week *day-names*)
-            (nth (1- month) *month-names*)
-            date
-            year
-            hour
-            minute
-            second
-            (- tz))))
+              file-count
+              game-name
+              seconds-passed
+              (nth day-of-week *day-names*)
+              (nth (1- month) *month-names*)
+              date
+              year
+              hour
+              minute
+              second
+              (- tz)))))
 
 (defun clean-up-callback (files)
   (when *verbose*

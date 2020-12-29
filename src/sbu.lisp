@@ -152,6 +152,7 @@
                (when (and (not count-only) backup-game-callback)
                  (funcall backup-game-callback
                           game-name
+                          file-count
                           (get-universal-time)
                           (/ (- end-time start-time)
                              internal-time-units-per-second))))))
