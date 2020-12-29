@@ -109,19 +109,6 @@
             (length files)
             files)))
 
-(defun print-warning (restart-function)
-  (lambda (condition)
-    (push condition *current-warnings*)
-    (format *error-output* "~%Warning: ~a~%" condition)
-    (funcall restart-function condition)))
-
-(defvar *warnings* nil
-  "A list of warnings that occur during the execution of the
-  program.")
-
-(defvar *current-warnings* nil
-  "A list of warnings that occur while backing up the current game.")
-
 (defparameter *verbose* nil
   "Whether to print verbose output.")
 
@@ -184,7 +171,7 @@
         (describe-commands :usage-of *program-name* :prefix condition)))))
 
 (defun backup (options free-args)
-  (let (*warnings* *current-warnings*)
+  (let (warnings current-warnings)
     (flet ((backup-game-callback (game-name file-count finish-time seconds-passed)
              (when (plusp file-count)
                (bind (((:values second minute hour date month year day-of-week _ tz)
@@ -192,7 +179,7 @@
                  (format *error-output* "~%Finished backing up ~d file~:p~@[ with ~d warning~:p~] for ~a in ~fs ~
 on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                          file-count
-                         (unless (null *current-warnings*) (length *current-warnings*))
+                         (unless (null current-warnings) (length current-warnings))
                          game-name
                          seconds-passed
                          (nth day-of-week *day-names*)
@@ -203,8 +190,13 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                          minute
                          second
                          (- tz))
-                 (appendf *warnings* (reverse *current-warnings*))
-                 (setf *current-warnings* nil)))))
+                 (appendf warnings (reverse current-warnings))
+                 (setf current-warnings nil))))
+           (print-warning (restart-function)
+             (lambda (condition)
+               (push condition current-warnings)
+               (format *error-output* "~%Warning: ~a~%" condition)
+               (funcall restart-function condition))))
       (handler-bind
           ((sbu:backup-file-error (print-warning #'sbu:skip-file))
            (sbu:backup-game-error (lambda (c)
@@ -229,11 +221,11 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                                                        free-args
                                                        :test 'equal)))
                           (mapcar #'sbu:backup-game)))
-              (when (plusp (length *warnings*))
+              (when (plusp (length warnings))
                 (format *error-output* "~d warning~:p occurred:~%"
-                        (length *warnings*))
+                        (length warnings))
                 (if *verbose*
-                    (format *error-output* "~%~{~a~%~%~}" *warnings*)
+                    (format *error-output* "~%~{~a~%~%~}" warnings)
                     (format *error-output* "Pass --verbose flag to print all warnings after backup completes~%~%"))))
             (unless (getf options :loop)
               (return))
