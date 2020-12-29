@@ -276,7 +276,8 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
            (error "Can't add ~a: already exists." game-name))
           (t (sbu:save-game games
                             game-name
-                            (tu:canonicalize-path (getf options :path))
+                            (cl-fad:pathname-as-directory
+                             (tu:canonicalize-path (getf options :path)))
                             (or (getf options :glob) ""))
              (format *error-output* "Added ~a.~%~%" game-name)))))
 
@@ -332,7 +333,9 @@ Save path: ~a~@[ -> ~a~]
          (old-game-path (getf old-game :save-path))
          (old-game-glob (getf old-game :save-glob))
          (new-game-name (or (getf options :name) old-game-name))
-         (new-game-path (tu:canonicalize-path (getf options :path)))
+         (new-game-path (when (getf options :path)
+                          (cl-fad:pathname-as-directory
+                           (tu:canonicalize-path (getf options :path)))))
          (new-game-glob (getf options :glob)))
     (cond ((not old-game) (error "~a doesn't exist.  Use `add' command to add it."
                                  old-game-name))
@@ -362,7 +365,9 @@ Save path: ~a~@[ -> ~a~]
                                    sbu:*backup-frequency*))
          (old-backups-to-keep (or (@ config :backups-to-keep)
                                   sbu:*backups-to-keep*))
-         (new-backup-path (tu:canonicalize-path (getf options :path)))
+         (new-backup-path (when (getf options :path)
+                            (cl-fad:pathname-as-directory
+                             (tu:canonicalize-path (getf options :path)))))
          (new-backup-frequency (getf options :frequency))
          (new-backups-to-keep (getf options :keep)))
     (when (or new-backup-path new-backup-frequency new-backups-to-keep)
