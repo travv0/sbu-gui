@@ -2,6 +2,7 @@
   (:use #:cl #:metabang-bind #:defstar)
   (:import-from #:travv0.utils #:fn)
   (:import-from #:serapeum #:~> #:~>> #:op)
+  (:local-nicknames (#:tu #:travv0.utils))
   (:export #:save-games
            #:load-games
            #:save-config
@@ -42,9 +43,9 @@
 
 (in-package :sbu)
 
-(defparameter *games-path* "~/.sbugames")
-(defparameter *config-path* "~/.sbuconfig")
-(defparameter *backup-path* "~/.sbu-backups/")
+(defparameter *games-path* (tu:canonicalize-path "~/.sbugames"))
+(defparameter *config-path* (tu:canonicalize-path "~/.sbuconfig"))
+(defparameter *backup-path* (tu:canonicalize-path "~/.sbu-backups/"))
 (defparameter *backup-frequency* 15)
 (defparameter *backups-to-keep* 10)
 
