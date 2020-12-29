@@ -290,13 +290,22 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
   (declare (ignore options))
   (let* ((games (sbu:load-games))
          (games-alist (sort (hash-table-alist games) #'string-lessp :key #'car)))
-    (format t "~{~{Name: ~a~%~@{~:(~a~): ~a~%~}~}~%~}"
-            (if (null free-args)
-                games-alist
-                (remove-if-not (op (position (car _)
-                                             free-args
-                                             :test 'equal))
-                               games-alist)))))
+    (loop for game in games-alist
+          when (or (null free-args)
+                   (position (car game) free-args :test 'string=))
+            do (print-game-info game))))
+
+(defun print-game-info (game &key new-game-name new-save-path new-save-glob)
+  (destructuring-bind (game-name &key save-path save-glob) game
+    (format *error-output* "Name: ~a~@[ -> ~a~]
+Save path: ~a~@[ -> ~a~]
+~@[Save glob: ~a~@[ -> ~a~]~%~]~%"
+            game-name new-game-name
+            save-path new-save-path
+            (when (or (> (length save-glob) 0)
+                      new-save-glob)
+              save-glob)
+            new-save-glob)))
 
 (defun remove-games (options free-args)
   (let* ((games (sbu:load-games))
@@ -338,12 +347,11 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                             (or new-game-path old-game-path)
                             (or new-game-glob old-game-glob "")
                             old-game-name)
-             (format *error-output* "Name: ~a~@[ -> ~a~]
-Save-Path: ~a~@[ -> ~a~]
-Save-Glob: ~a~@[ -> ~a~]~%"
-                     old-game-name (getf options :name)
-                     old-game-path new-game-path
-                     old-game-glob new-game-glob)))))
+             (print-game-info `(,old-game-name :save-path ,old-game-path
+                                               :save-glob ,old-game-glob)
+                              :new-game-name (getf options :name)
+                              :new-save-path new-game-path
+                              :new-save-glob new-game-glob)))))
 
 (defun config (options free-args)
   (declare (ignore free-args))
@@ -361,9 +369,9 @@ Save-Glob: ~a~@[ -> ~a~]~%"
       (sbu:save-config (dict :backup-path (or new-backup-path old-backup-path)
                              :backup-frequency (or new-backup-frequency old-backup-frequency)
                              :backups-to-keep (or new-backups-to-keep old-backups-to-keep))))
-    (format *error-output* "Backup-Path: ~a~@[ -> ~a~]
-Backup-Frequency: ~a~@[ -> ~a~]
-Backups-To-Keep: ~a~@[ -> ~a~]~%~%"
+    (format *error-output* "Backup path: ~a~@[ -> ~a~]
+Backup frequency (in minutes): ~a~@[ -> ~a~]
+Number of backups to keep: ~a~@[ -> ~a~]~%~%"
             old-backup-path new-backup-path
             old-backup-frequency new-backup-frequency
             old-backups-to-keep new-backups-to-keep)))
