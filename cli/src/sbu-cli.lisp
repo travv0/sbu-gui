@@ -197,7 +197,7 @@
     (format nil "sbu v~a" version)))
 
 (defun print-full-version-info ()
-  (format *error-output* "~a~%Compiled ~a with ~a ~a"
+  (format *error-output* "~a~%Compiled ~a with ~a ~a~%~%"
           (version)
           #.(multiple-value-bind
                   (second minute hour date month year)
