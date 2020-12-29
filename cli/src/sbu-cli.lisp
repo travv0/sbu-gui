@@ -91,6 +91,24 @@
              :arg-parser #'parse-integer
              :meta-var "BACKUPS_TO_KEEP")))
 
+(defun set-base-opts ()
+  (opts:define-opts
+    (:name :games-path
+     :description "Path to games configuration file."
+     :short #\g
+     :long "games-path"
+     :arg-parser #'identity
+     :meta-var "GAMES_CONFIG_PATH")
+    (:name :config-path
+     :description (string+ "Path to " *program-name* " configuration file.")
+     :short #\c
+     :long "config-path"
+     :arg-parser #'identity
+     :meta-var "PROGRAM_CONFIG_PATH")
+    (:name :version
+     :description "Print version information."
+     :long "version")))
+
 (defun backup-file-callback (from to)
   (format t "~%~a ==>~%~4t~a" from to)
   (force-output))
@@ -128,25 +146,15 @@
                                      *debugger-hook*))
                 (*program-name* (file-namestring (or (first (uiop:raw-command-line-arguments))
                                                      *program-name*))))
-            (opts:define-opts
-              (:name :games-path
-               :description "Path to games configuration file."
-               :short #\g
-               :long "games-path"
-               :arg-parser #'identity
-               :meta-var "GAMES_CONFIG_PATH")
-              (:name :config-path
-               :description (string+ "Path to " *program-name* " configuration file.")
-               :short #\c
-               :long "config-path"
-               :arg-parser #'identity
-               :meta-var "PROGRAM_CONFIG_PATH"))
-
+            (set-base-opts)
             (let* ((full-args (or (and args (cons nil args))
                                   (uiop:raw-command-line-arguments)))
                    (commands (commands))
                    (command-position (position-if (op (position _ commands :test #'string=))
                                                   full-args)))
+              (when (getf (opts:get-opts full-args) :version)
+                (print-version)
+                (return-from main))
               (if command-position
                   (let* ((pre-command-args (take command-position full-args))
                          (options (opts:get-opts pre-command-args))
@@ -169,6 +177,10 @@
                   (describe-commands :usage-of *program-name*)))))
       (opts:troublesome-option (condition)
         (describe-commands :usage-of *program-name* :prefix condition)))))
+
+(defun print-version ()
+  (let ((version #.(asdf:component-version (asdf:find-system :sbu/cli))))
+    (format *error-output* "sbu v~a" version)))
 
 (defun backup (options free-args)
   (let (warnings current-warnings)
