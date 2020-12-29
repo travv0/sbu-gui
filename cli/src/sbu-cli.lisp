@@ -100,7 +100,7 @@
      :arg-parser #'identity
      :meta-var "GAMES_CONFIG_PATH")
     (:name :config-path
-     :description (string+ "Path to " *program-name* " configuration file.")
+     :description "Path to sbu configuration file."
      :short #\c
      :long "config-path"
      :arg-parser #'identity
@@ -153,7 +153,7 @@
                    (command-position (position-if (op (position _ commands :test #'string=))
                                                   full-args)))
               (when (getf (opts:get-opts full-args) :version)
-                (print-version)
+                (print-full-version-info)
                 (return-from main))
               (if command-position
                   (let* ((pre-command-args (take command-position full-args))
@@ -171,16 +171,27 @@
                          (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
                                                     sbu:*backups-to-keep*)))
                     (if (null args)
-                        (describe-commands :usage-of *program-name*)
+                        (describe-commands :prefix (version) :usage-of *program-name*)
                         (bind (((subcommand . opts) args))
                           (handle-command subcommand opts *program-name*))))
-                  (describe-commands :usage-of *program-name*)))))
+                  (describe-commands :prefix (version) :usage-of *program-name*)))))
       (opts:troublesome-option (condition)
         (describe-commands :usage-of *program-name* :prefix condition)))))
 
-(defun print-version ()
+(defun version ()
   (let ((version #.(asdf:component-version (asdf:find-system :sbu/cli))))
-    (format *error-output* "sbu v~a" version)))
+    (format nil "sbu v~a" version)))
+
+(defun print-full-version-info ()
+  (format *error-output* "~a~%Compiled ~a with ~a ~a"
+          (version)
+          #.(multiple-value-bind
+                  (second minute hour date month year)
+                (get-decoded-time)
+              (format nil "on ~d-~2,'0d-~2,'0d at ~2,'0d:~2,'0d:~2,'0d"
+                      year month date hour minute second))
+          #.(lisp-implementation-type)
+          #.(lisp-implementation-version)))
 
 (defun backup (options free-args)
   (let (warnings current-warnings)
