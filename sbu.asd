@@ -21,7 +21,7 @@
   :components ((:file "sbu-gui")))
 
 (asdf:defsystem #:sbu/cli
-  :version "1.0.2"
+  :version "1.0.3"
   :serial t
   :pathname "./cli/src/"
   :depends-on (:sbu
@@ -32,3 +32,9 @@
                :alexandria)
   :components ((:file "opt-commands")
                (:file "sbu-cli")))
+
+(asdf:defsystem #:sbu/cli/tests
+  :serial t
+  :pathname "./cli/t/"
+  :depends-on (:sbu/cli :fiveam :mockingbird :serapeum :travv0.utils)
+  :components ((:file "test-sbu-cli")))

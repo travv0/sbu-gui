@@ -279,7 +279,8 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                             (cl-fad:pathname-as-directory
                              (tu:canonicalize-path (getf options :path)))
                             (or (getf options :glob) ""))
-             (format *error-output* "Added ~a.~%~%" game-name)))))
+             (format *error-output* "Added game:~%~%")
+             (print-game-info (cons game-name (@ games game-name)))))))
 
 (defun list-games (options free-args)
   (declare (ignore options free-args))
