@@ -31,10 +31,13 @@
                :metabang-bind
                :alexandria)
   :components ((:file "opt-commands")
-               (:file "sbu-cli")))
+               (:file "sbu-cli"))
+  :in-order-to ((test-op (test-op :sbu/cli/tests))))
 
 (asdf:defsystem #:sbu/cli/tests
   :serial t
   :pathname "./cli/t/"
   :depends-on (:sbu/cli :fiveam :mockingbird :serapeum :travv0.utils)
-  :components ((:file "test-sbu-cli")))
+  :components ((:file "test-sbu-cli"))
+  :perform (asdf:test-op :after (o s)
+                         (uiop:symbol-call :sbu/cli/tests '#:run-tests)))

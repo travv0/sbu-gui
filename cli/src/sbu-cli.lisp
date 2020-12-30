@@ -121,14 +121,14 @@
     "Jun" "Jul" "Aug" "Sep" "Oct"
     "Nov" "Dec"))
 
+(defparameter *verbose* nil
+  "Whether to print verbose output.")
+
 (defun clean-up-callback (files)
   (when *verbose*
     (format *error-output* "~%Deleted old backup~p:~:*~[~; ~:;~%~]~{~a~%~}"
             (length files)
             files)))
-
-(defparameter *verbose* nil
-  "Whether to print verbose output.")
 
 (defvar *application-catch-errors* nil)
 

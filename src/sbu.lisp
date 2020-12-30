@@ -73,10 +73,10 @@
                      (file-error-pathname condition)
                      (inner-error condition)))))
 
-(defun* (save-games -> list) ((games hash-table))
+(defun* (save-games -> (values list &optional)) ((games hash-table))
   (save-config games *games-path*))
 
-(defun* (load-games -> hash-table) ()
+(defun* (load-games -> (values hash-table &optional)) ()
   (load-config *games-path*))
 
 (defun* (save-config -> list) ((config hash-table)
@@ -140,6 +140,8 @@
   (invoke-restart 'treat-backup-as-complete))
 
 (defparameter *backup-game-callback* nil)
+(defparameter *backup-file-callback* nil)
+(defparameter *clean-up-callback* nil)
 
 (fn backup-game ((game-name . (&key save-path save-glob))
                  &key count-only
@@ -207,8 +209,6 @@
     (format nil "~a.bak.~4,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d_~2,'0d"
             to year month day hour min sec)))
 
-(defparameter *backup-file-callback* nil)
-
 (defun* (backup-file -> (values fixnum &optional)) ((game-name string)
                                                     (save-path (or string pathname))
                                                     (from (or string pathname))
@@ -256,8 +256,6 @@
 (defun skip-clean-up (condition)
   (declare (ignore condition))
   (invoke-restart 'skip-clean-up))
-
-(defparameter *clean-up-callback* nil)
 
 (defun* clean-up ((file-path (or string pathname))
                   &key (clean-up-callback *clean-up-callback*))
