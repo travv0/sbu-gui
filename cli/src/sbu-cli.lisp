@@ -297,17 +297,17 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                    (position (car game) free-args :test 'string=))
             do (print-game-info game))))
 
-(defun print-game-info (game &key new-game-name new-save-path new-save-glob)
-  (destructuring-bind (game-name &key save-path save-glob) game
-    (format *error-output* "Name: ~a~@[ -> ~a~]
+(tu:fn print-game-info ((game-name &key save-path save-glob)
+                        &key new-game-name new-save-path new-save-glob)
+  (format *error-output* "Name: ~a~@[ -> ~a~]
 Save path: ~a~@[ -> ~a~]
 ~@[Save glob: ~a~@[ -> ~a~]~%~]~%"
-            game-name new-game-name
-            save-path new-save-path
-            (when (or (> (length save-glob) 0)
-                      new-save-glob)
-              save-glob)
-            new-save-glob)))
+          game-name new-game-name
+          save-path new-save-path
+          (when (or (> (length save-glob) 0)
+                    new-save-glob)
+            save-glob)
+          new-save-glob))
 
 (defun remove-games (options free-args)
   (let* ((games (sbu:load-games))
