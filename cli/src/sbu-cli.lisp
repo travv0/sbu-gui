@@ -11,7 +11,7 @@
 
 (defparameter *program-name* "sbu")
 
-(define-command ("backup" 'backup "Back up your games.")
+(define-command ("backup" 'backup "Back up your games")
   :free-args (("GAMES" :count :many))
   :options ((:name :loop
              :description "Keep running, backing up games at the interval specified in your config file"
@@ -22,7 +22,7 @@
              :short #\v
              :long "verbose")))
 
-(define-command ("add" 'add "Add a new game to back up.")
+(define-command ("add" 'add "Add a new game to back up")
   :free-args (("GAME" :required t))
   :options ((:name :path
              :description "Game save path"
@@ -38,12 +38,12 @@
              :arg-parser #'identity
              :meta-var "GAME_SAVE_FILE_GLOB")))
 
-(define-command ("list" 'list-games "List games that can be backed up."))
+(define-command ("list" 'list-games "List games that can be backed up"))
 
-(define-command ("info" 'info "Show detailed info for games that can be backed up.")
+(define-command ("info" 'info "Show detailed info for games that can be backed up")
   :free-args (("GAMES" :count :many)))
 
-(define-command ("remove" 'remove-games "Remove games.")
+(define-command ("remove" 'remove-games "Remove games")
   :free-args (("GAMES" :count :many :required t))
   :options ((:name :yes
              :description "Remove all without confirmation prompts"
@@ -71,7 +71,7 @@
              :arg-parser #'identity
              :meta-var "NEW_SAVE_FILE_GLOB")))
 
-(define-command ("config" 'config "Edit program configuration.")
+(define-command ("config" 'config "Edit program configuration")
   :options ((:name :path
              :description "Path to directory in which to back up saves"
              :short #\p
@@ -94,19 +94,19 @@
 (defun set-base-opts ()
   (opts:define-opts
     (:name :games-path
-     :description "Path to games configuration file."
+     :description "Path to games configuration file"
      :short #\g
      :long "games-path"
      :arg-parser #'identity
      :meta-var "GAMES_CONFIG_PATH")
     (:name :config-path
-     :description "Path to sbu configuration file."
+     :description "Path to sbu configuration file"
      :short #\c
      :long "config-path"
      :arg-parser #'identity
      :meta-var "PROGRAM_CONFIG_PATH")
     (:name :version
-     :description "Print version information."
+     :description "Print version information"
      :long "version")))
 
 (defun backup-file-callback (from to)
