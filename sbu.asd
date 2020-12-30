@@ -37,7 +37,12 @@
 (asdf:defsystem #:sbu/cli/tests
   :serial t
   :pathname "./cli/t/"
-  :depends-on (:sbu/cli :fiveam :mockingbird :serapeum :travv0.utils)
+  :depends-on (:sbu/cli
+               :fiveam
+               :mockingbird
+               :serapeum
+               :travv0.utils
+               :cl-fad)
   :components ((:file "test-sbu-cli"))
   :perform (asdf:test-op :after (o s)
                          (uiop:symbol-call :sbu/cli/tests '#:run-tests)))

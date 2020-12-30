@@ -2,7 +2,7 @@
   (:use #:cl #:5am #:mockingbird)
   (:local-nicknames (#:tu #:travv0.utils)
                     (#:a #:alexandria))
-  (:export #:run-tests))
+  (:export #:run-tests #:generate-coverage))
 
 (in-package #:sbu/cli/tests)
 
@@ -11,6 +11,16 @@
 
 (defun run-tests ()
   (run! 'sbu/cli))
+
+(defun generate-coverage (directory)
+  (require :sb-cover)
+  (sb-cover:clear-coverage)
+  (declaim (optimize sb-cover:store-coverage-data))
+  (asdf:oos 'asdf:load-op :sbu/cli :force t)
+  (run-tests)
+  (sb-cover:report (fad:pathname-as-directory directory))
+  (declaim (optimize (sb-cover:store-coverage-data 0)))
+  (sb-cover:clear-coverage))
 
 (defvar *config-storage*)
 (defvar *games-storage*)
