@@ -10,7 +10,7 @@
   :components ((:file "sbu"))
   :in-order-to ((test-op (test-op :sbu/tests))))
 
-(asdf:defsystem #:sbu/tests
+(asdf:defsystem #:sbu/tests/utils
   :version "0.0.1"
   :serial t
   :pathname "./t/"
@@ -22,7 +22,25 @@
                :metabang-bind
                :cl-fad
                :defstar)
-  :components ((:file "test-sbu")))
+  :components ((:file "utils")))
+
+(asdf:defsystem #:sbu/tests
+  :version "0.0.1"
+  :serial t
+  :pathname "./t/"
+  :depends-on (:travv0.utils
+               :sbu/tests/utils
+               :sbu/cli/tests
+               :sb-cover
+               :fiveam
+               :mockingbird
+               :serapeum
+               :metabang-bind
+               :cl-fad
+               :defstar)
+  :components ((:file "test-sbu"))
+  :perform (asdf:test-op :after (o s)
+                         (uiop:symbol-call :sbu/tests '#:run-tests)))
 
 (asdf:defsystem #:sbu/gui
   :version "0.0.1"
@@ -53,11 +71,11 @@
   :serial t
   :pathname "./cli/t/"
   :depends-on (:sbu/cli
-               :sbu/tests
+               :sbu/tests/utils
                :serapeum
                :travv0.utils
                :cl-fad)
   :components ((:file "test-sbu-cli"))
-  :in-order-to ((test-op (test-op :sbu/tests)))
+  :in-order-to ((test-op (load-op :sbu/tests)))
   :perform (asdf:test-op :after (o s)
                          (uiop:symbol-call :sbu/cli/tests '#:run-tests)))

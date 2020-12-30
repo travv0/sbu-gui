@@ -1,8 +1,8 @@
 (defpackage #:sbu/cli/tests
   (:use #:cl #:5am #:mockingbird)
-  (:import-from #:sbu/tests #:fs-mock)
+  (:import-from #:sbu/tests/utils #:fs-mock)
   (:local-nicknames (#:tu #:travv0.utils))
-  (:export #:run-tests #:generate-coverage))
+  (:export #:run-tests #:generate-coverage #:sbu/cli))
 
 (in-package #:sbu/cli/tests)
 
@@ -10,15 +10,13 @@
 (in-suite sbu/cli)
 
 (defun run-tests ()
-  (and (sbu/tests:run-tests)
-       (run! 'sbu/cli)))
+  (run! 'sbu/cli))
 
 (defun generate-coverage (directory)
   (require :sb-cover)
   (sb-cover:clear-coverage)
   (declaim (optimize sb-cover:store-coverage-data))
   (asdf:oos 'asdf:load-op :sbu/cli :force t)
-  (asdf:oos 'asdf:load-op :sbu :force t)
   (run-tests)
   (sb-cover:report (fad:pathname-as-directory directory))
   (declaim (optimize (sb-cover:store-coverage-data 0)))
