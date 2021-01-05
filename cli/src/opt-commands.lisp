@@ -7,7 +7,8 @@
            #:general-args-error
            #:describe-commands
            #:handle-command
-           #:commands))
+           #:commands
+           #:unknown-command))
 
 (in-package :opt-commands)
 
@@ -115,6 +116,11 @@ Returns T if command exists, NIL otherwise."
           do (setf max-count most-positive-fixnum)
         finally (return (values min-count max-count))))
 
+(define-condition unknown-command (opts:troublesome-option)
+  ((command :initarg :command :accessor unknown-command-command))
+  (:report (lambda (c s)
+             (format s "unknown command: ~s" (unknown-command-command c)))))
+
 (defun handle-command (command args &optional application-name)
   (if (set-opts command)
       (let ((free-arg-names (string-join (mapcar #'free-arg-name (get-command-free-args command))
@@ -143,4 +149,4 @@ Returns T if command exists, NIL otherwise."
                                            (format nil "~a ~a" application-name command))
                                :args free-arg-names
                                :prefix (format nil "Error: ~a" condition))))))
-      (describe-commands :usage-of application-name)))
+      (error 'unknown-command :command command)))
