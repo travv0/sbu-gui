@@ -67,7 +67,7 @@ free arguments this command accepts."
 (defparameter *argument-block-width* 25)
 (defparameter *max-width* 80)
 
-(defun describe-commands (&key prefix suffix usage-of)
+(defun describe-commands (&key prefix suffix usage-of brief)
   "Print the help screen showing which commands are available.
 
 `prefix' will be printed before the list of available commands.
@@ -78,6 +78,7 @@ how the commands are used."
                  :args "COMMAND"
                  :argument-block-width *argument-block-width*
                  :max-width *max-width*
+                 :brief brief
                  :prefix prefix
                  :suffix (~>> *commands*
                               hash-table-alist
@@ -144,6 +145,7 @@ Returns T if command exists, NIL otherwise."
                          (funcall command-function options free-args))))
               (opts:troublesome-option (condition)
                 (opts:describe :argument-block-width *argument-block-width*
+                               :brief t
                                :max-width *max-width*
                                :usage-of (when application-name
                                            (format nil "~a ~a" application-name command))

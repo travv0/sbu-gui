@@ -185,15 +185,18 @@
                        (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
                                                   sbu:*backups-to-keep*)))
                   (if (null args)
-                      (describe-commands :prefix (version) :usage-of *program-name*)
+                      (describe-commands :prefix (version) :usage-of *program-name* :brief t)
                       (bind (((subcommand . opts) args))
                         (handle-command subcommand opts *program-name*))))
                 (multiple-value-bind (opts free-args) (opts:get-opts (rest full-args))
                   (cond ((getf opts :version) (print-full-version-info))
                         ((first free-args) (error 'opt-commands:unknown-command :command (first free-args)))
-                        (t (describe-commands :usage-of *program-name*)))))))
+                        (t (error 'unix-opts:missing-arg :option "COMMAND")))))))
       (opts:troublesome-option (condition)
-        (describe-commands :usage-of *program-name* :prefix (format nil "Error: ~a" condition))))))
+        (opts:describe :usage-of *program-name*
+                       :prefix (format nil "Error: ~a" condition)
+                       :args "COMMAND"
+                       :brief t)))))
 
 (defun version ()
   (let ((version #.(asdf:component-version (asdf:find-system :sbu/cli))))
