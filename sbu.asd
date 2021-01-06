@@ -54,7 +54,7 @@
   :components ((:file "sbu-gui")))
 
 (asdf:defsystem #:sbu/cli
-  :version "1.1.1"
+  :version "1.1.2"
   :serial t
   :pathname "./cli/src/"
   :depends-on (:sbu

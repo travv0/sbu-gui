@@ -75,6 +75,7 @@ free arguments this command accepts."
 `usage-of' take the name of the application and uses it to show
 how the commands are used."
   (opts:describe :usage-of usage-of
+                 :stream *error-output*
                  :args "COMMAND"
                  :argument-block-width *argument-block-width*
                  :max-width *max-width*
@@ -128,6 +129,7 @@ Returns T if command exists, NIL otherwise."
                                          " ")))
         (if (help-flag-p args)
             (opts:describe :argument-block-width *argument-block-width*
+                           :stream *error-output*
                            :max-width *max-width*
                            :usage-of (when application-name
                                        (format nil "~a ~a" application-name command))
@@ -145,6 +147,7 @@ Returns T if command exists, NIL otherwise."
                          (funcall command-function options free-args))))
               (opts:troublesome-option (condition)
                 (opts:describe :argument-block-width *argument-block-width*
+                               :stream *error-output*
                                :brief t
                                :max-width *max-width*
                                :usage-of (when application-name

@@ -12,6 +12,12 @@
 (defun run-tests ()
   (run! 'sbu/cli))
 
+(defun program-name ()
+  (file-namestring (first (uiop:raw-command-line-arguments))))
+
+(defun remove-whitespace (s)
+  (remove-if #'serapeum:whitespacep s))
+
 (defun generate-coverage (directory)
   (require :sb-cover)
   (sb-cover:clear-coverage)
@@ -149,3 +155,153 @@ Number of backups to keep: 4
                    :backup-frequency 10
                    :backup-path (tu:canonicalize-path "~/diff-path/"))
                   config)))))
+
+(test cli-no-args
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: missing arg for option: \"COMMAND\"
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+           [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help] COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))))
+
+(test cli-bad-command
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "asdf"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown command: \"asdf\"
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+           [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help] COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))))
+
+(test cli-help
+  (with-fixture fs-mock ()
+    (let ((help-output (remove-whitespace
+                        (format nil "~a
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+                [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help] COMMAND
+
+Available options:
+  -g, --games-path GAMES_CONFIG_PATH
+                            Path to games configuration file
+  -c, --config-path PROGRAM_CONFIG_PATH
+                            Path to sbu configuration file
+  --version                 Print version information
+  -h, --help                Print this help
+
+Available commands:
+  add                       Add a new game to back up
+  backup                    Back up your games
+  config                    Edit program configuration
+  edit                      Edit game info.
+  info                      Show detailed info for games that can be backed up
+  list                      List games that can be backed up
+  remove                    Remove games
+
+
+"
+                                (sbu/cli::version)
+                                (program-name)))))
+      (let ((s (with-output-to-string (*error-output*)
+                 (sbu/cli:main "--help"))))
+        (is (string= help-output (remove-whitespace s))))
+      (let ((s (with-output-to-string (*error-output*)
+                 (sbu/cli:main "--help" "add"))))
+        (is (string= help-output (remove-whitespace s)))))))
+
+(test cli-version
+  (with-fixture fs-mock ()
+    (let ((version-output (with-output-to-string (*error-output*)
+                            (sbu/cli::print-full-version-info))))
+      (let ((s (with-output-to-string (*error-output*)
+                 (sbu/cli:main "--version"))))
+        (is (string= version-output s)))
+      (let ((s (with-output-to-string (*error-output*)
+                 (sbu/cli:main "--version" "add"))))
+        (is (string= version-output s))))))
+
+(test cli-add
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "add"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: missing arguments: \"GAME\"
+
+Usage: ~a add [-p|--path GAME_SAVE_PATH (Required)]
+                    [-g|--glob GAME_SAVE_FILE_GLOB] [-h|--help] GAME
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "add" "--path" "asdf"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: missing arguments: \"GAME\"
+
+Usage: ~a add [-p|--path GAME_SAVE_PATH (Required)]
+                    [-g|--glob GAME_SAVE_FILE_GLOB] [-h|--help] GAME
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "add" "fdsa" "--path" "asdf"))))
+      (is (string= (format nil "Added game:
+
+Name: fdsa
+Save path: ~a
+
+"
+                           (tu:canonicalize-path "asdf/"))
+                   s)))))
+
+(test cli-config
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "config"))))
+      (is (string= (format nil "Backup path: ~a
+Backup frequency (in minutes): 13
+Number of backups to keep: 10
+
+"
+                           (tu:canonicalize-path "~/.sbu-backups/"))
+                   s)))
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "config" "-p" "~/diff-path" "-k" "4"))))
+      (is (string= (format nil "Backup path: ~a -> ~a
+Backup frequency (in minutes): 13
+Number of backups to keep: 10 -> 4
+
+"
+                           (tu:canonicalize-path "~/.sbu-backups/")
+                           (tu:canonicalize-path "~/diff-path/"))
+                   s)))
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "config" "--help"))))
+      (is (string= (remove-whitespace
+                    (format nil "
+Usage: ~a config [-p|--path BACKUP_PATH] [-f|--frequency BACKUP_FREQUENCY]
+                       [-k|--keep BACKUPS_TO_KEEP] [-h|--help]
+
+Available options:
+  -p, --path BACKUP_PATH    Path to directory in which to back up saves
+  -f, --frequency BACKUP_FREQUENCY
+                            Frequency in minutes to backup saves when looping
+  -k, --keep BACKUPS_TO_KEEP
+                            How many copies of each backed-up file to keep
+  -h, --help                Print this help
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))))
