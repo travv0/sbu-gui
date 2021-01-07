@@ -19,7 +19,6 @@
   (remove-if #'serapeum:whitespacep s))
 
 (defun generate-coverage (directory)
-  (require :sb-cover)
   (sb-cover:clear-coverage)
   (declaim (optimize sb-cover:store-coverage-data))
   (asdf:oos 'asdf:load-op :sbu/cli :force t)

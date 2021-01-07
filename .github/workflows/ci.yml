@@ -2,7 +2,7 @@
 
 name: CI
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
@@ -23,34 +23,31 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v2
-      - name: Cache SBCL
-        id: cache-sbcl
-        uses: actions/cache@v2
-        with:
-          path: ~/sbcl/
-          key: ${{ runner.os }}-sbcl
       - name: Cache Quicklisp
         id: cache-ql
         uses: actions/cache@v2
         with:
           path: ~/quicklisp/
-          key: ${{ runner.os }}-sbcl        
-    
-      - name: Configure SBCL
-        run: |
-          echo "SBCL_HOME=$HOME\sbcl\" >> $GITHUB_ENV
-          echo "$HOME\sbcl\" >> $GITHUB_PATH
+          key: ${{ runner.os }}-ql
+
       - name: Install SBCL
         if: steps.cache-sbcl.outputs.cache-hit != 'true'
         run: |
-          mkdir -p "$SBCL_HOME" ** \
-              curl https://pilotfiber.dl.sourceforge.net/project/sbcl/sbcl/2.1.0/sbcl-2.1.0-x86-64-linux-binary.tar.bz2 -s -o - | \
-              tar jxvf - -C $SBCL_HOME
+          sudo apt-get install sbcl
+          sbcl --version
       - name: Install Quicklisp
         if: steps.cache-ql.outputs.cache-hit != 'true'
         run: |
-          curl -o $TEMP/quicklisp.lisp https://beta.quicklisp.org/quicklisp.lisp
-          sbcl --noinform --end-runtime-options --no-sysinit --no-userinit --disable-debugger --load "$TEMP\quicklisp.lisp" --eval "(quicklisp-quickstart:install)" --quit
+          curl -o $HOME/quicklisp.lisp https://beta.quicklisp.org/quicklisp.lisp
+          sbcl --noinform --end-runtime-options --no-sysinit --no-userinit --disable-debugger --load "$HOME/quicklisp.lisp" --eval "(quicklisp-quickstart:install)" --quit
+      - name: Install dependencies
+        run: |
+          git clone https://github.com/travv0/cl-utils $GITHUB_WORKSPACE/cl-utils
+          git clone https://github.com/travv0/unix-opts $GITHUB_WORKSPACE/unix-opts
+          cd $GITHUB_WORKSPACE/unix-opts
+          git checkout main
       - name: Unit Tests
         shell: bash
-        run: ./test.sh
+        run: |
+          chmod +x $GITHUB_WORKSPACE/test.sh
+          $GITHUB_WORKSPACE/test.sh
