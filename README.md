@@ -1,6 +1,8 @@
 # sbu
 Backup your saves when Steam won't do it for you.
 
+![CI](https://github.com/travv0/sbu.lisp/workflows/CI/badge.svg)
+
 This is a tool for easily backing up game saves to cloud storage or a network drive when the game doesn't support cloud saves.
 
 Start by setting the location you want your save backups to be stored in:  
