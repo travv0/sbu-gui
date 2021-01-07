@@ -67,28 +67,40 @@ free arguments this command accepts."
 (defparameter *argument-block-width* 25)
 (defparameter *max-width* 80)
 
-(defun describe-commands (&key prefix suffix usage-of brief)
+(defun describe-commands (&key prefix suffix usage-of brief (usage-of-label "Usage"))
   "Print the help screen showing which commands are available.
 
 `prefix' will be printed before the list of available commands.
 `suffix' will be printed after the list of available commands.
 `usage-of' take the name of the application and uses it to show
 how the commands are used."
-  (opts:describe :usage-of usage-of
-                 :stream *error-output*
-                 :args "COMMAND"
+  (when prefix
+    (format *error-output* "~a~&~%" prefix))
+  (when usage-of
+    (format *error-output* "~a: ~a~a~%~%"
+            usage-of-label
+            usage-of
+            (print-usage (+ (length usage-of-label)
+                            (length usage-of)
+                            2) ; colon and space
+                         *max-width*
+                         opts::*options*
+                         '("COMMAND"))))
+  (opts:describe :stream *error-output*
                  :argument-block-width *argument-block-width*
                  :max-width *max-width*
                  :brief brief
-                 :prefix prefix
-                 :suffix (~>> *commands*
-                              hash-table-alist
-                              (sort _ #'string-lessp :key #'car)
-                              (mapcar (op (list (1+ *argument-block-width*)
-                                                (car _1)
-                                                (getf (cdr _1) :description))))
-                              (format nil "Available commands:~%~:{~2t~va~a~%~}~%~@[~a~]"
-                                      _ suffix))))
+                 :defined-options (if brief '() opts::*options*))
+  (when (not brief)
+    (format *error-output* "~a~&"
+            (~>> *commands*
+                 hash-table-alist
+                 (sort _ #'string-lessp :key #'car)
+                 (mapcar (op (list (1+ *argument-block-width*)
+                                   (car _1)
+                                   (getf (cdr _1) :description))))
+                 (format nil "Available commands:~%~:{~2t~va~a~%~}~%~@[~a~]"
+                         _ suffix)))))
 
 (defun set-opts (command)
   "Set the accepted command line arguments to those relevant to `command'.
@@ -155,3 +167,41 @@ Returns T if command exists, NIL otherwise."
                                :args free-arg-names
                                :prefix (format nil "Error: ~a" condition))))))
       (error 'unknown-command :command command)))
+
+(defun print-usage (margin max-width defined-options free-args)
+  "Return a string containing info about defined options. All options are
+displayed on one line, although this function tries to print it elegantly if
+it gets too long. MARGIN specifies margin."
+  (let ((fill-col (- max-width margin))
+        (i 0)
+        (last-newline 0))
+    (with-output-to-string (s)
+      (dolist (opt defined-options)
+        (with-slots (opts::short opts::long opts::required opts::arg-parser opts::meta-var) opt
+          (let* ((str
+                   (format nil " [~a]"
+                           (concatenate
+                            'string
+                            (if opts::short (format nil "-~c" opts::short) "")
+                            (if (and opts::short opts::long) "|" "")
+                            (if opts::long  (format nil "--~a" opts::long) "")
+                            (if opts::arg-parser (format nil " ~a" opts::meta-var) "")
+                            (if opts::required (format nil " (Required)") ""))))
+                 (length (length str)))
+            (when (> (- (+ i length) last-newline) fill-col)
+              (terpri s)
+              (dotimes (x margin)
+                (princ #\space s))
+              (setf last-newline i))
+            (incf i length)
+            (princ str s))))
+      (dolist (arg free-args)
+        (let* ((str (format nil " ~a" arg))
+               (length (length str)))
+          (when (> (- (+ i length) last-newline) fill-col)
+            (terpri s)
+            (dotimes (x margin)
+              (princ #\space s))
+            (setf last-newline i))
+          (incf i length)
+          (princ str s))))))

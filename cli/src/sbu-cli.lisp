@@ -201,11 +201,9 @@
                       (cond ((first free-args) (error 'opt-commands:unknown-command :command (first free-args)))
                             (t (error 'unix-opts:missing-arg :option "COMMAND"))))))))
         (opts:troublesome-option (condition)
-          (opts:describe :usage-of *program-name*
-                         :stream *error-output*
-                         :prefix (format nil "Error: ~a" condition)
-                         :args "COMMAND"
-                         :brief t))))))
+          (describe-commands :usage-of *program-name*
+                             :prefix (format nil "Error: ~a" condition)
+                             :brief t))))))
 
 (defun version ()
   (let ((version #.(asdf:component-version (asdf:find-system :sbu/cli))))
