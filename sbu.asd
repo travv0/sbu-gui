@@ -62,6 +62,7 @@
                :serapeum
                :travv0.utils
                :metabang-bind
+               :mk-string-metrics
                :alexandria)
   :components ((:file "opt-commands")
                (:file "sbu-cli"))

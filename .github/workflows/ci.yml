@@ -23,6 +23,8 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - name: Cache Quicklisp
         id: cache-ql
         uses: actions/cache@v2
@@ -40,12 +42,6 @@ jobs:
         run: |
           curl -o $HOME/quicklisp.lisp https://beta.quicklisp.org/quicklisp.lisp
           sbcl --noinform --end-runtime-options --no-sysinit --no-userinit --disable-debugger --load "$HOME/quicklisp.lisp" --eval "(quicklisp-quickstart:install)" --quit
-      - name: Install dependencies
-        run: |
-          git clone https://github.com/travv0/cl-utils $GITHUB_WORKSPACE/cl-utils
-          git clone https://github.com/travv0/unix-opts $GITHUB_WORKSPACE/unix-opts
-          cd $GITHUB_WORKSPACE/unix-opts
-          git checkout main
       - name: Unit Tests
         shell: bash
         run: |
