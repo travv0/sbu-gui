@@ -386,3 +386,48 @@ Available options:
 "
                             (program-name)))
                    (remove-whitespace s))))))
+
+(test cli-backup
+  (with-fixture fs-mock ()
+    (let ((backup-directory (fad:merge-pathnames-as-directory
+                             (asdf:system-source-directory :sbu/cli/tests)
+                             "cli/t/backups/"))
+          (save-directory (fad:merge-pathnames-as-directory
+                           (asdf:system-source-directory :sbu/cli/tests)
+                           "cli/t/test-files/")))
+      (with-output-to-string (*error-output*)
+        (sbu/cli:main "config" "-p" (namestring backup-directory))
+        (sbu/cli:main "add" "test-game" "-p" (namestring save-directory)))
+      (unwind-protect
+           (progn
+             (let ((stderr (make-array 0 :element-type 'character :fill-pointer t :adjustable t))
+                   (stdout (make-array 0 :element-type 'character :fill-pointer t :adjustable t)))
+               (with-output-to-string (*error-output* stderr)
+                 (with-output-to-string (*standard-output* stdout)
+                   (sbu/cli:main "backup" "test-game")))
+               (is (string= (format nil "
+~aa.txt ==>
+    ~atest-game/a.txt
+~ab.txt ==>
+    ~atest-game/b.txt
+~ac.txt ==>
+    ~atest-game/c.txt"
+                                    save-directory backup-directory
+                                    save-directory backup-directory
+                                    save-directory backup-directory)
+                            stdout))
+               (is-true (search "Finished backing up 3 files for test-game in" stderr)))
+             (is (= 6 (length (fad:list-directory (fad:merge-pathnames-as-directory
+                                                   backup-directory
+                                                   "test-game/")))))
+             (let ((stderr (make-array 0 :element-type 'character :fill-pointer t :adjustable t))
+                   (stdout (make-array 0 :element-type 'character :fill-pointer t :adjustable t)))
+               (with-output-to-string (*error-output* stderr)
+                 (with-output-to-string (*standard-output* stdout)
+                   (sbu/cli:main "backup" "test-game")))
+               (is (uiop:emptyp stdout))
+               (is (uiop:emptyp stderr)))
+             (is (= 6 (length (fad:list-directory (fad:merge-pathnames-as-directory
+                                                   backup-directory
+                                                   "test-game/"))))))
+        (uiop:delete-directory-tree backup-directory :validate (constantly t))))))
