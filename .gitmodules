@@ -1,0 +1,9 @@
+[submodule "lib/cl-utils"]
+	path = lib/cl-utils
+	url = https://github.com/travv0/cl-utils
+[submodule "lib/unix-opts"]
+	path = lib/unix-opts
+	url = https://github.com/travv0/unix-opts
+[submodule "lib/mk-string-metrics"]
+	path = lib/mk-string-metrics
+	url = https://github.com/travv0/mk-string-metrics

@@ -176,6 +176,88 @@ Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
       (is (string= (remove-whitespace
                     (format nil "Error: unknown command: \"asdf\"
 
+Did you mean this?
+        add
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+           [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help] COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))))
+
+(test cli-bad-but-close-opts
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "backu"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown command: \"backu\"
+
+Did you mean this?
+        backup
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+           [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help] COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))
+
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "-a" "backu"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown option: \"-a\"
+
+Did you mean one of these?
+        -g
+        -c
+        -h
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+           [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help] COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))
+
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "backup" "-a"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown option: \"-a\"
+
+Did you mean one of these?
+        -l
+        -v
+        -h
+
+Usage: ~a backup [-l|--loop] [-v|--verbose] [-h|--help] GAMES...
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))
+
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "backup" "--hepl"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown option: \"--hepl\"
+
+Did you mean this?
+        --help
+
+Usage: ~a backup [-l|--loop] [-v|--verbose] [-h|--help] GAMES...
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))
+
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "--hepl"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown option: \"--hepl\"
+
+Did you mean this?
+        --help
+
 Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
            [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help] COMMAND
 

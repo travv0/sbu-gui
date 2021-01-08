@@ -8,7 +8,10 @@
            #:describe-commands
            #:handle-command
            #:commands
-           #:unknown-command))
+           #:unknown-command
+           #:unknown-command-command
+           #:similar-opts
+           #:build-opt-choices))
 
 (in-package :opt-commands)
 
@@ -158,15 +161,39 @@ Returns T if command exists, NIL otherwise."
                         (t
                          (funcall command-function options free-args))))
               (opts:troublesome-option (condition)
-                (opts:describe :argument-block-width *argument-block-width*
-                               :stream *error-output*
-                               :brief t
-                               :max-width *max-width*
-                               :usage-of (when application-name
-                                           (format nil "~a ~a" application-name command))
-                               :args free-arg-names
-                               :prefix (format nil "Error: ~a" condition))))))
+                (let ((similar-output (when (slot-boundp condition 'opts:option)
+                                        (similar-opts (opts:option condition)
+                                                      (build-opt-choices)))))
+                  (opts:describe :argument-block-width *argument-block-width*
+                                 :stream *error-output*
+                                 :brief t
+                                 :max-width *max-width*
+                                 :usage-of (when application-name
+                                             (format nil "~a ~a" application-name command))
+                                 :args free-arg-names
+                                 :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)))))))
       (error 'unknown-command :command command)))
+
+(defun build-opt-choices ()
+  (loop for opt in opts::*options*
+        for long-opt = (when (opts::long opt) (concat "--" (opts::long opt)))
+        for short-opt = (when (opts::short opt) (format nil "-~c" (opts::short opt)))
+        when long-opt
+          collect long-opt
+        when short-opt
+          collect short-opt))
+
+(defun similar-opts (bad-option choices)
+  "Takes an option that didn't match, `bad-option', and the `choices'
+that it had tried to match, and returns a formatted string asking the
+user if they meant the choices that were similar to the bad option."
+  (let* ((similar (loop for opt in choices
+                        when (< (mk-string-metrics:damerau-levenshtein bad-option opt) 3)
+                          collect opt)))
+    (cond ((= (length similar) 1)
+           (format nil "Did you mean this?~%~t~a" (first similar)))
+          ((> (length similar) 1)
+           (format nil "Did you mean one of these?~{~%~t~a~}" similar)))))
 
 (defun print-usage (margin max-width defined-options free-args)
   "Return a string containing info about defined options. All options are
