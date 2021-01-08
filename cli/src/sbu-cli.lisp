@@ -253,12 +253,7 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                (funcall restart-function condition))))
       (handler-bind
           ((sbu:backup-file-error (print-warning #'sbu:skip-file))
-           (sbu:backup-game-error (lambda (c)
-                                    (funcall
-                                     (if (find-restart 'sbu:skip-file)
-                                         (funcall (print-warning #'sbu:skip-file)
-                                                  (sbu:inner-error c))
-                                         (funcall (print-warning #'sbu:skip-game) c)))))
+           (sbu:backup-game-error (print-warning #'sbu:skip-game))
            (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
         (let ((games (sbu:load-games))
               (*verbose* (getf options :verbose))

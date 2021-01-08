@@ -161,7 +161,8 @@
                              internal-time-units-per-second))))))
       (restart-case
           (handler-bind
-              ((error (lambda (e)
+              ((backup-file-error (lambda (e) (error e)))
+               (error (lambda (e)
                         (error 'backup-game-error :game-name game-name
                                                   :game-path save-path
                                                   :inner-error e))))
