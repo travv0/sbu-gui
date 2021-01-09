@@ -118,6 +118,10 @@ Returns T if command exists, NIL otherwise."
 (defun get-command-free-args (command)
   (getf (@ *commands* command) :free-args))
 
+(defun help-flag-p (args)
+  (or (position "-h" args :test 'string=)
+      (position "--help" args :test 'string=)))
+
 (defun get-free-arg-checks (free-args)
   (loop with min-count = 0 and max-count = 0
         for free-arg in free-args
@@ -138,36 +142,36 @@ Returns T if command exists, NIL otherwise."
   (if (set-opts command)
       (let ((free-arg-names (string-join (mapcar #'free-arg-name (get-command-free-args command))
                                          " ")))
-        (handler-case
-            (bind ((command-function (get-command-function command))
-                   ((:values min-count max-count)
-                    (get-free-arg-checks (get-command-free-args command)))
-                   ((:values options free-args) (when args (opts:get-opts args))))
-              (if (getf options :help)
-                  (opts:describe :argument-block-width *argument-block-width*
-                                 :stream *error-output*
-                                 :max-width *max-width*
-                                 :usage-of (when application-name
-                                             (format nil "~a ~a" application-name command))
-                                 :args free-arg-names)
+        (if (help-flag-p args)
+            (opts:describe :argument-block-width *argument-block-width*
+                           :stream *error-output*
+                           :max-width *max-width*
+                           :usage-of (when application-name
+                                       (format nil "~a ~a" application-name command))
+                           :args free-arg-names)
+            (handler-case
+                (bind ((command-function (get-command-function command))
+                       ((:values min-count max-count)
+                        (get-free-arg-checks (get-command-free-args command)))
+                       ((:values options free-args) (when args (opts:get-opts args))))
                   (cond ((< (length free-args) min-count)
                          (error 'missing-free-args :args (get-command-free-args command)))
                         ((not (<= min-count (length free-args) max-count))
                          (error 'extra-free-args :args (drop max-count free-args)))
                         (t
-                         (funcall command-function options free-args)))))
-          (opts:troublesome-option (condition)
-            (let ((similar-output (when (slot-boundp condition 'opts:option)
-                                    (similar-opts (opts:option condition)
-                                                  (build-opt-choices)))))
-              (opts:describe :argument-block-width *argument-block-width*
-                             :stream *error-output*
-                             :brief t
-                             :max-width *max-width*
-                             :usage-of (when application-name
-                                         (format nil "~a ~a" application-name command))
-                             :args free-arg-names
-                             :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output))))))
+                         (funcall command-function options free-args))))
+              (opts:troublesome-option (condition)
+                (let ((similar-output (when (slot-boundp condition 'opts:option)
+                                        (similar-opts (opts:option condition)
+                                                      (build-opt-choices)))))
+                  (opts:describe :argument-block-width *argument-block-width*
+                                 :stream *error-output*
+                                 :brief t
+                                 :max-width *max-width*
+                                 :usage-of (when application-name
+                                             (format nil "~a ~a" application-name command))
+                                 :args free-arg-names
+                                 :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)))))))
       (error 'unknown-command :command command)))
 
 (defun build-opt-choices ()
