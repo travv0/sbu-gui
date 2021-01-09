@@ -431,3 +431,23 @@ Available options:
                                                    backup-directory
                                                    "test-game/"))))))
         (uiop:delete-directory-tree backup-directory :validate (constantly t))))))
+
+(test help-flag-after-command
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "add" "-h"))))
+      (is (string= (remove-whitespace
+                    (format nil "
+Usage: ~a add [-p|--path GAME_SAVE_PATH (Required)]
+                    [-g|--glob GAME_SAVE_FILE_GLOB] [-h|--help] GAME
+
+Available options:
+  -p, --path GAME_SAVE_PATH (Required)
+                            Game save path
+  -g, --glob GAME_SAVE_FILE_GLOB
+                            Game save file glob
+  -h, --help                Print this help
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))))
