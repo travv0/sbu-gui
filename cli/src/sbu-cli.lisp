@@ -114,7 +114,7 @@
      :long "help")))
 
 (defun backup-file-callback (from to)
-  (format t "~%~a ==>~%~4t~a" from to)
+  (format t "~a ==>~%~4t~a~%" from to)
   (force-output))
 
 (defparameter *day-names*
@@ -161,7 +161,9 @@
 (defun main (&rest args)
   (flet ((error-and-abort (condition debugger-hook)
            (declare (ignore debugger-hook))
-           (format *error-output* "Error: ~a~%" condition)
+           (cl-ansi-text:with-color (:red :stream *error-output*)
+             (format *error-output* "Error: ~a" condition))
+           (format *error-output* "~%")
            (return-from main)))
     (let ((*debugger-hook* (if *application-catch-errors*
                                #'error-and-abort
@@ -249,7 +251,9 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
            (print-warning (restart-function)
              (lambda (condition)
                (push condition current-warnings)
-               (format *error-output* "~%Warning: ~a~%" condition)
+               (cl-ansi-text:with-color (:yellow :stream *error-output*)
+                 (format *error-output* "Warning: ~a" condition))
+               (format *error-output* "~%~%")
                (funcall restart-function condition))))
       (handler-bind
           ((sbu:backup-file-error (print-warning #'sbu:skip-file))

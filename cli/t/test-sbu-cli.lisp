@@ -405,13 +405,13 @@ Available options:
                (with-output-to-string (*error-output* stderr)
                  (with-output-to-string (*standard-output* stdout)
                    (sbu/cli:main "backup" "test-game")))
-               (is (string= (format nil "
-~aa.txt ==>
+               (is (string= (format nil "~aa.txt ==>
     ~atest-game/a.txt
 ~ab.txt ==>
     ~atest-game/b.txt
 ~ac.txt ==>
-    ~atest-game/c.txt"
+    ~atest-game/c.txt
+"
                                     save-directory backup-directory
                                     save-directory backup-directory
                                     save-directory backup-directory)

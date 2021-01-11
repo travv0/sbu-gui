@@ -63,7 +63,8 @@
                :travv0.utils
                :metabang-bind
                :mk-string-metrics
-               :alexandria)
+               :alexandria
+               :cl-ansi-text)
   :components ((:file "opt-commands")
                (:file "sbu-cli"))
   :in-order-to ((test-op (test-op :sbu/cli/tests))))
