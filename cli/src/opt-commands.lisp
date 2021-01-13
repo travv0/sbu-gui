@@ -160,19 +160,22 @@ Returns T if command exists, NIL otherwise."
                          (error 'extra-free-args :args (drop max-count free-args)))
                         (t
                          (funcall command-function options free-args))))
+              (opts:unknown-option (condition)
+                (let ((similar-output (similar-opts (opts:option condition) (build-opt-choices))))
+                  (describe-opts condition application-name command free-arg-names similar-output)))
               (opts:troublesome-option (condition)
-                (let ((similar-output (when (slot-boundp condition 'opts:option)
-                                        (similar-opts (opts:option condition)
-                                                      (build-opt-choices)))))
-                  (opts:describe :argument-block-width *argument-block-width*
-                                 :stream *error-output*
-                                 :brief t
-                                 :max-width *max-width*
-                                 :usage-of (when application-name
-                                             (format nil "~a ~a" application-name command))
-                                 :args free-arg-names
-                                 :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)))))))
+                (describe-opts condition application-name command free-arg-names)))))
       (error 'unknown-command :command command)))
+
+(defun describe-opts (condition application-name command free-arg-names &optional similar-output)
+  (opts:describe :argument-block-width *argument-block-width*
+                 :stream *error-output*
+                 :brief t
+                 :max-width *max-width*
+                 :usage-of (when application-name
+                             (format nil "~a ~a" application-name command))
+                 :args free-arg-names
+                 :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)))
 
 (defun build-opt-choices ()
   (loop for opt in opts::*options*

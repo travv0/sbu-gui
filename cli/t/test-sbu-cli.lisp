@@ -451,3 +451,31 @@ Available options:
 "
                             (program-name)))
                    (remove-whitespace s))))))
+
+(test dont-show-did-you-mean-for-missing-arg
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "add" "test" "-p"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: missing arg for option: \"-p\"
+
+Usage: ~a add [-p|--path GAME_SAVE_PATH (Required)]
+                    [-g|--glob GAME_SAVE_FILE_GLOB] [-h|--help] GAME
+
+"
+                            (program-name)))
+                   (remove-whitespace s)))))
+
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "-g"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: missing arg for option: \"-g\"
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+                [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help]
+                COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))))
