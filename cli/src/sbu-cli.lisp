@@ -212,20 +212,20 @@
                         (cond ((first free-args) (error 'opt-commands:unknown-command :command (first free-args)))
                               (t (error 'unix-opts:missing-arg :option "COMMAND"))))))))
           (opts:unknown-option (condition)
-            (let ((similar-output (similar-opts (opts:option condition) (build-opt-choices))))
-              (describe-commands :usage-of *program-name*
-                                 :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)
-                                 :brief t)))
+            (describe-commands-with-hint condition (opts:option condition)))
           (unknown-command (condition)
-            (let ((similar-output (similar-opts (unknown-command-command condition)
-                                                (append (commands) (build-opt-choices)))))
-              (describe-commands :usage-of *program-name*
-                                 :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)
-                                 :brief t)))
+            (describe-commands-with-hint condition (unknown-command-command condition)))
           (opts:troublesome-option (condition)
             (describe-commands :usage-of *program-name*
                                :prefix (format nil "Error: ~a" condition)
                                :brief t)))))))
+
+(defun describe-commands-with-hint (condition bad-input)
+  (let ((similar-output (similar-opts bad-input
+                                      (append (commands) (build-opt-choices)))))
+    (describe-commands :usage-of *program-name*
+                       :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)
+                       :brief t)))
 
 (defun version ()
   (let ((version #.(asdf:component-version (asdf:find-system :sbu/cli))))

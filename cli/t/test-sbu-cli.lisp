@@ -464,13 +464,49 @@ Usage: ~a add [-p|--path GAME_SAVE_PATH (Required)]
 
 "
                             (program-name)))
-                   (remove-whitespace s)))))
+                   (remove-whitespace s))))
 
-  (with-fixture fs-mock ()
     (let ((s (with-output-to-string (*error-output*)
                (sbu/cli:main "-g"))))
       (is (string= (remove-whitespace
                     (format nil "Error: missing arg for option: \"-g\"
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+                [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help]
+                COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))))
+
+(test include-commands-in-did-you-mean-for-unknown-option
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "--add"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown option: \"--add\"
+
+Did you mean this?
+ add
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+                [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help]
+                COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))
+
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "ad"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown command: \"ad\"
+
+Did you mean one of these?
+ add
+ -g
+ -c
+ -h
 
 Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
                 [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help]
