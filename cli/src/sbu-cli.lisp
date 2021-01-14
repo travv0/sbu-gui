@@ -155,7 +155,7 @@
          (print-full-version-info)
          t)
         ((getf opts :help)
-         (describe-commands :prefix (version) :usage-of *program-name*)
+         (describe-commands :prefix (version) :usage-of *program-name* :stream *error-output*)
          t)))
 
 (defun color-support-p ()
@@ -217,6 +217,7 @@
             (describe-commands-with-hint condition (unknown-command-command condition)))
           (opts:troublesome-option (condition)
             (describe-commands :usage-of *program-name*
+                               :stream *error-output*
                                :prefix (format nil "Error: ~a" condition)
                                :brief t)))))))
 
@@ -224,6 +225,7 @@
   (let ((similar-output (similar-opts bad-input
                                       (append (commands) (build-opt-choices)))))
     (describe-commands :usage-of *program-name*
+                       :stream *error-output*
                        :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)
                        :brief t)))
 

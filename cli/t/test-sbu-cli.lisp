@@ -347,6 +347,49 @@ Save path: ~a
                            (tu:canonicalize-path "asdf/"))
                    s)))))
 
+(test cli-remove
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "remove"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: missing arguments: \"GAMES...\"
+
+Usage: ~a remove [-y|--yes] [-h|--help] GAMES...
+
+"
+                            (program-name)))
+                   (remove-whitespace s)))))
+
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (with-input-from-string (input "y")
+                 (with-open-stream (*query-io* (make-two-way-stream input *error-output*))
+                   (sbu/cli:main "remove" "test"))))))
+      (is (string= (remove-whitespace "Are you sure you'd like to remove the following games from sbcl.exe?
+test
+ (y or n)
+
+Removed the following games: test
+
+")
+                   (remove-whitespace s)))
+      (is-false (nth-value 1 (gethash "test" (sbu:load-games))))))
+
+  (with-fixture fs-mock ()
+    (let ((s (with-output-to-string (*error-output*)
+               (with-input-from-string (input "n")
+                 (with-open-stream (*query-io* (make-two-way-stream input *error-output*))
+                   (sbu/cli:main "remove" "test"))))))
+      (is (string= (remove-whitespace "Are you sure you'd like to remove the following games from sbcl.exe?
+test
+ (y or n)
+
+No games removed.
+
+")
+                   (remove-whitespace s)))
+      (is-true (nth-value 1 (gethash "test" (sbu:load-games)))))))
+
 (test cli-config
   (with-fixture fs-mock ()
     (let ((s (with-output-to-string (*error-output*)

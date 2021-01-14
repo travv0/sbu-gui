@@ -70,7 +70,8 @@ free arguments this command accepts."
 (defparameter *argument-block-width* 25)
 (defparameter *max-width* 80)
 
-(defun describe-commands (&key prefix suffix usage-of brief (usage-of-label "Usage"))
+(defun describe-commands (&key prefix suffix usage-of brief (usage-of-label "Usage")
+                            (stream *standard-output*) (argument-block-width 25) (max-width 80))
   "Print the help screen showing which commands are available.
 
 `prefix' will be printed before the list of available commands.
@@ -78,28 +79,28 @@ free arguments this command accepts."
 `usage-of' take the name of the application and uses it to show
 how the commands are used."
   (when prefix
-    (format *error-output* "~a~&~%" prefix))
+    (format stream "~a~&~%" prefix))
   (when usage-of
-    (format *error-output* "~a: ~a~a~%~%"
+    (format stream "~a: ~a~a~%~%"
             usage-of-label
             usage-of
             (print-usage (+ (length usage-of-label)
                             (length usage-of)
                             2) ; colon and space
-                         *max-width*
+                         max-width
                          opts::*options*
                          '("COMMAND"))))
-  (opts:describe :stream *error-output*
-                 :argument-block-width *argument-block-width*
-                 :max-width *max-width*
+  (opts:describe :stream stream
+                 :argument-block-width argument-block-width
+                 :max-width max-width
                  :brief brief
                  :defined-options (if brief '() opts::*options*))
   (when (not brief)
-    (format *error-output* "~a~&"
+    (format stream "~a~&"
             (~>> *commands*
                  hash-table-alist
                  (sort _ #'string-lessp :key #'car)
-                 (mapcar (op (list (1+ *argument-block-width*)
+                 (mapcar (op (list (1+ argument-block-width)
                                    (car _1)
                                    (getf (cdr _1) :description))))
                  (format nil "Available commands:~%~:{~2t~va~a~%~}~%~@[~a~]"
