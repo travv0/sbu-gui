@@ -293,11 +293,12 @@ on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
                                                        :test 'equal)))
                           (mapcar #'sbu:backup-game)))
               (when (plusp (length warnings))
-                (format *error-output* "~d warning~:p occurred:~%"
-                        (length warnings))
-                (if *verbose*
-                    (format *error-output* "~%~{~a~%~%~}" warnings)
-                    (format *error-output* "Pass --verbose flag to print all warnings after backup completes~%~%"))))
+                (cl-ansi-text:with-color (:yellow :stream *error-output*)
+                  (format *error-output* "~d warning~:p occurred:~%"
+                          (length warnings))
+                  (if *verbose*
+                      (format *error-output* "~%~{~a~%~%~}" warnings)
+                      (format *error-output* "Pass --verbose flag to print all warnings after backup completes~%~%")))))
             (unless (getf options :loop)
               (return))
             (sleep (* 60 sbu:*backup-frequency*))))))))
