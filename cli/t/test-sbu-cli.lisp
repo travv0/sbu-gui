@@ -365,13 +365,14 @@ Usage: ~a remove [-y|--yes] [-h|--help] GAMES...
                (with-input-from-string (input "y")
                  (with-open-stream (*query-io* (make-two-way-stream input *error-output*))
                    (sbu/cli:main "remove" "test"))))))
-      (is (string= (remove-whitespace "Are you sure you'd like to remove the following games from sbcl.exe?
+      (is (string= (remove-whitespace (format nil "Are you sure you'd like to remove the following games from ~a?
 test
  (y or n)
 
 Removed the following games: test
 
-")
+"
+                                              (program-name)))
                    (remove-whitespace s)))
       (is-false (nth-value 1 (gethash "test" (sbu:load-games))))))
 
@@ -380,13 +381,14 @@ Removed the following games: test
                (with-input-from-string (input "n")
                  (with-open-stream (*query-io* (make-two-way-stream input *error-output*))
                    (sbu/cli:main "remove" "test"))))))
-      (is (string= (remove-whitespace "Are you sure you'd like to remove the following games from sbcl.exe?
+      (is (string= (remove-whitespace (format nil "Are you sure you'd like to remove the following games from ~a?
 test
  (y or n)
 
 No games removed.
 
-")
+"
+                                              (program-name)))
                    (remove-whitespace s)))
       (is-true (nth-value 1 (gethash "test" (sbu:load-games)))))))
 
