@@ -245,44 +245,44 @@
           #.(lisp-implementation-version)))
 
 (defun backup (options free-args)
-  (let (warnings current-warnings)
-    (flet ((backup-game-callback (game-name file-count finish-time seconds-passed)
-             (when (plusp file-count)
-               (bind (((:values second minute hour date month year day-of-week _ tz)
-                       (decode-universal-time finish-time)))
-                 (format *error-output* "~%Finished backing up ~d file~:p~@[ with ~d warning~:p~] for ~a in ~fs ~
+  (loop
+    (let (warnings current-warnings)
+      (flet ((backup-game-callback (game-name file-count finish-time seconds-passed)
+               (when (plusp file-count)
+                 (bind (((:values second minute hour date month year day-of-week _ tz)
+                         (decode-universal-time finish-time)))
+                   (format *error-output* "~%Finished backing up ~d file~:p~@[ with ~d warning~:p~] for ~a in ~fs ~
 on ~a, ~a ~d ~d at ~2,'0d:~2,'0d:~2,'0d (GMT~@d)~%~%"
-                         file-count
-                         (unless (null current-warnings) (length current-warnings))
-                         game-name
-                         seconds-passed
-                         (nth day-of-week *day-names*)
-                         (nth (1- month) *month-names*)
-                         date
-                         year
-                         hour
-                         minute
-                         second
-                         (- tz))
-                 (appendf warnings (reverse current-warnings))
-                 (setf current-warnings nil))))
-           (print-warning (restart-function)
-             (lambda (condition)
-               (push condition current-warnings)
-               (cl-ansi-text:with-color (:yellow :stream *error-output*)
-                 (format *error-output* "Warning: ~a" condition))
-               (format *error-output* "~%~%")
-               (funcall restart-function condition))))
-      (handler-bind
-          ((sbu:backup-file-error (print-warning #'sbu:skip-file))
-           (sbu:backup-game-error (print-warning #'sbu:skip-game))
-           (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
-        (let ((games (sbu:load-games))
-              (*verbose* (getf options :verbose))
-              (sbu:*backup-game-callback* #'backup-game-callback)
-              (sbu:*backup-file-callback* #'backup-file-callback)
-              (sbu:*clean-up-callback* #'clean-up-callback))
-          (loop
+                           file-count
+                           (unless (null current-warnings) (length current-warnings))
+                           game-name
+                           seconds-passed
+                           (nth day-of-week *day-names*)
+                           (nth (1- month) *month-names*)
+                           date
+                           year
+                           hour
+                           minute
+                           second
+                           (- tz))
+                   (appendf warnings (reverse current-warnings))
+                   (setf current-warnings nil))))
+             (print-warning (restart-function)
+               (lambda (condition)
+                 (push condition current-warnings)
+                 (cl-ansi-text:with-color (:yellow :stream *error-output*)
+                   (format *error-output* "Warning: ~a" condition))
+                 (format *error-output* "~%~%")
+                 (funcall restart-function condition))))
+        (handler-bind
+            ((sbu:backup-file-error (print-warning #'sbu:skip-file))
+             (sbu:backup-game-error (print-warning #'sbu:skip-game))
+             (sbu:clean-up-error (print-warning #'sbu:skip-clean-up)))
+          (let ((games (sbu:load-games))
+                (*verbose* (getf options :verbose))
+                (sbu:*backup-game-callback* #'backup-game-callback)
+                (sbu:*backup-file-callback* #'backup-file-callback)
+                (sbu:*clean-up-callback* #'clean-up-callback))
             (unwind-protect
                  (if (null free-args)
                      (sbu:backup-all games)
