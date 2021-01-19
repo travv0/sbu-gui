@@ -11,6 +11,10 @@
 
 (defparameter *program-name* "sbu")
 
+(defparameter *argument-block-width* 25)
+
+(defparameter *max-width* 80)
+
 (define-command ("backup" 'backup "Back up your games")
   :free-args (("GAMES" :count :many))
   :options ((:name :loop
@@ -155,7 +159,11 @@
          (print-full-version-info)
          t)
         ((getf opts :help)
-         (describe-commands :prefix (version) :usage-of *program-name* :stream *error-output*)
+         (describe-commands :prefix (version)
+                            :argument-block-width *argument-block-width*
+                            :max-width *max-width*
+                            :usage-of *program-name*
+                            :stream *error-output*)
          t)))
 
 (defun color-support-p ()
@@ -205,8 +213,23 @@
                                                       sbu:*backup-path*))
                                (sbu:*backups-to-keep* (or (@ config :backups-to-keep)
                                                           sbu:*backups-to-keep*)))
-                          (bind (((subcommand . opts) args))
-                            (handle-command subcommand opts *program-name*)))))
+                          (bind (((subcommand . opts) args)
+                                 (free-arg-names (string-join (command-free-arg-names subcommand) " ")))
+                            (handler-case (handle-command subcommand opts)
+                              (help-flag (condition)
+                                (opts:describe :stream *error-output*
+                                               :argument-block-width *argument-block-width*
+                                               :max-width *max-width*
+                                               :usage-of (when *program-name*
+                                                           (format nil "~a ~a"
+                                                                   *program-name*
+                                                                   (help-flag-command condition)))
+                                               :args (help-flag-free-args condition)))
+                              (opts:unknown-option (condition)
+                                (let ((similar-output (similar-opts (opts:option condition) (build-opt-choices))))
+                                  (describe-opts condition subcommand free-arg-names similar-output)))
+                              (opts:troublesome-option (condition)
+                                (describe-opts condition subcommand free-arg-names)))))))
                     (multiple-value-bind (opts free-args) (opts:get-opts (rest full-args))
                       (unless (handle-pre-command-args opts)
                         (cond ((first free-args) (error 'opt-commands:unknown-command :command (first free-args)))
@@ -217,14 +240,27 @@
             (describe-commands-with-hint condition (unknown-command-command condition)))
           (opts:troublesome-option (condition)
             (describe-commands :usage-of *program-name*
+                               :argument-block-width *argument-block-width*
+                               :max-width *max-width*
                                :stream *error-output*
                                :prefix (format nil "Error: ~a" condition)
                                :brief t)))))))
+
+(defun describe-opts (condition command free-arg-names &optional similar-output)
+  (opts:describe :argument-block-width *argument-block-width*
+                 :max-width *max-width*
+                 :stream *error-output*
+                 :brief t
+                 :usage-of (format nil "~a ~a" *program-name* command)
+                 :args free-arg-names
+                 :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)))
 
 (defun describe-commands-with-hint (condition bad-input)
   (let ((similar-output (similar-opts bad-input
                                       (append (commands) (build-opt-choices)))))
     (describe-commands :usage-of *program-name*
+                                               :argument-block-width *argument-block-width*
+                                               :max-width *max-width*
                        :stream *error-output*
                        :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)
                        :brief t)))

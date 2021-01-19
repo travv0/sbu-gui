@@ -10,8 +10,12 @@
            #:commands
            #:unknown-command
            #:unknown-command-command
+           #:help-flag
+           #:help-flag-command
+           #:help-flag-free-args
            #:similar-opts
-           #:build-opt-choices))
+           #:build-opt-choices
+           #:command-free-arg-names))
 
 (in-package :opt-commands)
 
@@ -67,8 +71,9 @@ free arguments this command accepts."
   (:report (lambda (condition stream)
              (format stream "extra arguments provided: ~{~s~^, ~}" (args condition)))))
 
-(defparameter *argument-block-width* 25)
-(defparameter *max-width* 80)
+(define-condition help-flag ()
+  ((command :initarg :command :accessor help-flag-command)
+   (free-args :initarg :free-args :accessor help-flag-free-args)))
 
 (defun describe-commands (&key prefix suffix usage-of brief (usage-of-label "Usage")
                             (stream *standard-output*) (argument-block-width 25) (max-width 80))
@@ -119,6 +124,10 @@ Returns T if command exists, NIL otherwise."
 (defun get-command-free-args (command)
   (getf (@ *commands* command) :free-args))
 
+(defun command-free-arg-names (command)
+  (mapcar #'free-arg-name
+          (getf (@ *commands* command) :free-args)))
+
 (defun help-flag-p (args)
   (or (position "-h" args :test 'string=)
       (position "--help" args :test 'string=)))
@@ -139,44 +148,23 @@ Returns T if command exists, NIL otherwise."
   (:report (lambda (c s)
              (format s "unknown command: ~s" (unknown-command-command c)))))
 
-(defun handle-command (command args &optional application-name)
+(defun handle-command (command args)
   (if (set-opts command)
       (let ((free-arg-names (string-join (mapcar #'free-arg-name (get-command-free-args command))
                                          " ")))
         (if (help-flag-p args)
-            (opts:describe :argument-block-width *argument-block-width*
-                           :stream *error-output*
-                           :max-width *max-width*
-                           :usage-of (when application-name
-                                       (format nil "~a ~a" application-name command))
-                           :args free-arg-names)
-            (handler-case
-                (bind ((command-function (get-command-function command))
-                       ((:values min-count max-count)
-                        (get-free-arg-checks (get-command-free-args command)))
-                       ((:values options free-args) (when args (opts:get-opts args))))
-                  (cond ((< (length free-args) min-count)
-                         (error 'missing-free-args :args (get-command-free-args command)))
-                        ((not (<= min-count (length free-args) max-count))
-                         (error 'extra-free-args :args (drop max-count free-args)))
-                        (t
-                         (funcall command-function options free-args))))
-              (opts:unknown-option (condition)
-                (let ((similar-output (similar-opts (opts:option condition) (build-opt-choices))))
-                  (describe-opts condition application-name command free-arg-names similar-output)))
-              (opts:troublesome-option (condition)
-                (describe-opts condition application-name command free-arg-names)))))
+            (error 'help-flag :command command :free-args free-arg-names)
+            (bind ((command-function (get-command-function command))
+                   ((:values min-count max-count)
+                    (get-free-arg-checks (get-command-free-args command)))
+                   ((:values options free-args) (when args (opts:get-opts args))))
+              (cond ((< (length free-args) min-count)
+                     (error 'missing-free-args :args (get-command-free-args command)))
+                    ((not (<= min-count (length free-args) max-count))
+                     (error 'extra-free-args :args (drop max-count free-args)))
+                    (t
+                     (funcall command-function options free-args))))))
       (error 'unknown-command :command command)))
-
-(defun describe-opts (condition application-name command free-arg-names &optional similar-output)
-  (opts:describe :argument-block-width *argument-block-width*
-                 :stream *error-output*
-                 :brief t
-                 :max-width *max-width*
-                 :usage-of (when application-name
-                             (format nil "~a ~a" application-name command))
-                 :args free-arg-names
-                 :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)))
 
 (defun build-opt-choices ()
   (loop for opt in opts::*options*
@@ -195,9 +183,9 @@ user if they meant the choices that were similar to the bad option."
                         when (< (mk-string-metrics:damerau-levenshtein bad-option opt) 3)
                           collect opt)))
     (cond ((= (length similar) 1)
-           (format nil "Did you mean this?~%~t~a" (first similar)))
+           (format nil "Did you mean this?~%~4t~a" (first similar)))
           ((> (length similar) 1)
-           (format nil "Did you mean one of these?~{~%~t~a~}" similar)))))
+           (format nil "Did you mean one of these?~{~%~4t~a~}" similar)))))
 
 (defun print-usage (margin max-width defined-options free-args)
   "Return a string containing info about defined options. All options are
