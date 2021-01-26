@@ -1,7 +1,6 @@
 (defpackage :opt-commands
   (:use #:cl #:alexandria #:metabang-bind #:serapeum)
-  (:export #:define-command
-           #:remove-command
+  (:export #:define-commands
            #:extra-free-args
            #:missing-free-args
            #:general-args-error
@@ -27,6 +26,12 @@
 (defun commands ()
   "Returns a list of the names of all commands."
   (hash-table-keys *commands*))
+
+(defmacro define-commands (&body commands)
+  `(progn
+     (setf *commands* (dict))
+     ,@(loop for command in commands
+             collecting `(define-command ,@command))))
 
 (defmacro define-command ((command-name function &optional description) &body body)
   "Define a sub-command with its own command line arguments.

@@ -15,85 +15,86 @@
 
 (defparameter *max-width* 80)
 
-(define-command ("backup" 'backup "Back up your games")
-  :free-args (("GAMES" :count :many))
-  :options ((:name :loop
-             :description "Keep running, backing up games at the interval specified in your config file"
-             :short #\l
-             :long "loop")
-            (:name :verbose
-             :description "Print verbose output"
-             :short #\v
-             :long "verbose")))
+(define-commands
+  (("backup" 'backup "Back up your games")
+   :free-args (("GAMES" :count :many))
+   :options ((:name :loop
+              :description "Keep running, backing up games at the interval specified in your config file"
+              :short #\l
+              :long "loop")
+             (:name :verbose
+              :description "Print verbose output"
+              :short #\v
+              :long "verbose")))
 
-(define-command ("add" 'add "Add a new game to back up")
-  :free-args (("GAME" :required t))
-  :options ((:name :path
-             :description "Game save path"
-             :short #\p
-             :long "path"
-             :arg-parser #'identity
-             :required t
-             :meta-var "GAME_SAVE_PATH")
-            (:name :glob
-             :description "Game save file glob"
-             :short #\g
-             :long "glob"
-             :arg-parser #'identity
-             :meta-var "GAME_SAVE_FILE_GLOB")))
+  (("add" 'add "Add a new game to back up")
+   :free-args (("GAME" :required t))
+   :options ((:name :path
+              :description "Game save path"
+              :short #\p
+              :long "path"
+              :arg-parser #'identity
+              :required t
+              :meta-var "GAME_SAVE_PATH")
+             (:name :glob
+              :description "Game save file glob"
+              :short #\g
+              :long "glob"
+              :arg-parser #'identity
+              :meta-var "GAME_SAVE_FILE_GLOB")))
 
-(define-command ("list" 'list-games "List games that can be backed up"))
+  (("list" 'list-games "List games that can be backed up"))
 
-(define-command ("info" 'info "Show detailed info for games that can be backed up")
-  :free-args (("GAMES" :count :many)))
+  (("info" 'info "Show detailed info for games that can be backed up")
+   :free-args (("GAMES" :count :many)))
 
-(define-command ("remove" 'remove-games "Remove games")
-  :free-args (("GAMES" :count :many :required t))
-  :options ((:name :yes
-             :description "Remove all without confirmation prompts"
-             :short #\y
-             :long "yes")))
+  (("remove" 'remove-games "Remove games")
+   :free-args (("GAMES" :count :many :required t))
+   :options ((:name :yes
+              :description "Remove all without confirmation prompts"
+              :short #\y
+              :long "yes")))
 
-(define-command ("edit" 'edit "Edit game info.")
-  :free-args (("GAME" :required t))
-  :options ((:name :name
-             :description "New name"
-             :short #\n
-             :long "name"
-             :arg-parser #'identity
-             :meta-var "NEW_NAME")
-            (:name :path
-             :description "New save path"
-             :short #\p
-             :long "path"
-             :arg-parser #'identity
-             :meta-var "NEW_SAVE_PATH")
-            (:name :glob
-             :description "New save file glob"
-             :short #\g
-             :long "glob"
-             :arg-parser #'identity
-             :meta-var "NEW_SAVE_FILE_GLOB")))
+  (("edit" 'edit "Edit game info.")
+   :free-args (("GAME" :required t))
+   :options ((:name :name
+              :description "New name"
+              :short #\n
+              :long "name"
+              :arg-parser #'identity
+              :meta-var "NEW_NAME")
+             (:name :path
+              :description "New save path"
+              :short #\p
+              :long "path"
+              :arg-parser #'identity
+              :meta-var "NEW_SAVE_PATH")
+             (:name :glob
+              :description "New save file glob"
+              :short #\g
+              :long "glob"
+              :arg-parser #'identity
+              :meta-var "NEW_SAVE_FILE_GLOB")))
 
-(define-command ("config" 'config "Edit program configuration")
-  :options ((:name :path
-             :description "Path to directory in which to back up saves"
-             :short #\p
-             :long "path"
-             :arg-parser #'identity
-             :meta-var "BACKUP_PATH")
-            (:name :frequency
-             :description "Frequency in minutes to backup saves when looping"
-             :short #\f
-             :long "frequency"
-             :arg-parser #'parse-integer
-             :meta-var "BACKUP_FREQUENCY")
-            (:name :keep
-             :description "How many copies of each backed-up file to keep"
-             :short #\k
-             :long "keep"
-             :arg-parser #'parse-integer
-             :meta-var "BACKUPS_TO_KEEP")))
+  (("config" 'config "Edit program configuration")
+   :options ((:name :path
+              :description "Path to directory in which to back up saves"
+              :short #\p
+              :long "path"
+              :arg-parser #'identity
+              :meta-var "BACKUP_PATH")
+             (:name :frequency
+              :description "Frequency in minutes to backup saves when looping"
+              :short #\f
+              :long "frequency"
+              :arg-parser #'parse-integer
+              :meta-var "BACKUP_FREQUENCY")
+             (:name :keep
+              :description "How many copies of each backed-up file to keep"
+              :short #\k
+              :long "keep"
+              :arg-parser #'parse-integer
+              :meta-var "BACKUPS_TO_KEEP"))))
 
 (defun set-base-opts ()
   (opts:define-opts
@@ -259,8 +260,8 @@
   (let ((similar-output (similar-opts bad-input
                                       (append (commands) (build-opt-choices)))))
     (describe-commands :usage-of *program-name*
-                                               :argument-block-width *argument-block-width*
-                                               :max-width *max-width*
+                       :argument-block-width *argument-block-width*
+                       :max-width *max-width*
                        :stream *error-output*
                        :prefix (format nil "Error: ~a~@[~%~%~a~]" condition similar-output)
                        :brief t)))
