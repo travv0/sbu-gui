@@ -16,8 +16,8 @@
 (defparameter *max-width* 80)
 
 (define-commands
-  (("backup" 'backup "Back up your games")
-   :free-args (("GAMES" :count :many))
+  (:command (:name "backup" :function 'backup :description "Back up your games")
+   :free-args ((:name "GAMES" :count :many))
    :options ((:name :loop
               :description "Keep running, backing up games at the interval specified in your config file"
               :short #\l
@@ -27,8 +27,8 @@
               :short #\v
               :long "verbose")))
 
-  (("add" 'add "Add a new game to back up")
-   :free-args (("GAME" :required t))
+  (:command (:name "add" :function 'add :description "Add a new game to back up")
+   :free-args ((:name "GAME" :required t))
    :options ((:name :path
               :description "Game save path"
               :short #\p
@@ -43,20 +43,20 @@
               :arg-parser #'identity
               :meta-var "GAME_SAVE_FILE_GLOB")))
 
-  (("list" 'list-games "List games that can be backed up"))
+  (:command (:name "list" :function 'list-games :description "List games that can be backed up"))
 
-  (("info" 'info "Show detailed info for games that can be backed up")
-   :free-args (("GAMES" :count :many)))
+  (:command (:name "info" :function 'info :description "Show detailed info for games that can be backed up")
+   :free-args ((:name "GAMES" :count :many)))
 
-  (("remove" 'remove-games "Remove games")
-   :free-args (("GAMES" :count :many :required t))
+  (:command (:name "remove" :function 'remove-games :description "Remove games")
+   :free-args ((:name "GAMES" :count :many :required t))
    :options ((:name :yes
               :description "Remove all without confirmation prompts"
               :short #\y
               :long "yes")))
 
-  (("edit" 'edit "Edit game info.")
-   :free-args (("GAME" :required t))
+  (:command (:name "edit" :function 'edit :description "Edit game info.")
+   :free-args ((:name "GAME" :required t))
    :options ((:name :name
               :description "New name"
               :short #\n
@@ -76,7 +76,7 @@
               :arg-parser #'identity
               :meta-var "NEW_SAVE_FILE_GLOB")))
 
-  (("config" 'config "Edit program configuration")
+  (:command (:name "config" :function 'config :description "Edit program configuration")
    :options ((:name :path
               :description "Path to directory in which to back up saves"
               :short #\p

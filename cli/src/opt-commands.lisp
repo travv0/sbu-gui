@@ -31,9 +31,11 @@
   `(progn
      (setf *commands* (dict))
      ,@(loop for command in commands
-             collecting `(define-command ,@command))))
+             collecting `(define-command ,command))))
 
-(defmacro define-command ((command-name function &optional description) &body body)
+(defmacro define-command ((&key ((:command (&key ((:name command-name)) function description)))
+                             free-args
+                             options))
   "Define a sub-command with its own command line arguments.
 
 This macro takes a `command-name' as a string, a `function' that should take 2
@@ -41,22 +43,21 @@ arguments - the options and free arguments returned by `opts:get-opts' - and an 
 `description' of the command to be shown on the help screen.  The body of this macro
 should be plists that `opts:define-opts' would accept, or strings naming the
 free arguments this command accepts."
-  (destructuring-bind (&key free-args options) body
-    `(setf (@ *commands* ,command-name)
-           (list :function ,function
-                 :description ,description
-                 :free-args (mapcar (lambda (arg)
-                                      (when (eq (free-arg-count arg) :many)
-                                        (setf (free-arg-name arg) (concat (free-arg-name arg) "...")))
-                                      arg)
-                                    (mapcar (op (apply #'make-free-arg :name _)) ',free-args))
-                 :make-opts (lambda ()
-                              (opts:define-opts
-                                ,@options
-                                (:name :help
-                                 :description "Print this help"
-                                 :short #\h
-                                 :long "help")))))))
+  `(setf (@ *commands* ,command-name)
+         (list :function ,function
+               :description ,description
+               :free-args (mapcar (lambda (arg)
+                                    (when (eq (free-arg-count arg) :many)
+                                      (setf (free-arg-name arg) (concat (free-arg-name arg) "...")))
+                                    arg)
+                                  (mapcar (op (apply #'make-free-arg _)) ',free-args))
+               :make-opts (lambda ()
+                            (opts:define-opts
+                              ,@options
+                              (:name :help
+                               :description "Print this help"
+                               :short #\h
+                               :long "help"))))))
 
 (defun remove-command (command-name)
   (remhash command-name *commands*))
