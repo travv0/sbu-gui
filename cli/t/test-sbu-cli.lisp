@@ -543,6 +543,22 @@ Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
                    (remove-whitespace s))))
 
     (let ((s (with-output-to-string (*error-output*)
+               (sbu/cli:main "bacup" "-l"))))
+      (is (string= (remove-whitespace
+                    (format nil "Error: unknown command: \"bacup\"
+
+Did you mean this?
+ backup
+
+Usage: ~a [-g|--games-path GAMES_CONFIG_PATH]
+                [-c|--config-path PROGRAM_CONFIG_PATH] [--version] [-h|--help]
+                COMMAND
+
+"
+                            (program-name)))
+                   (remove-whitespace s))))
+
+    (let ((s (with-output-to-string (*error-output*)
                (sbu/cli:main "ad"))))
       (is (string= (remove-whitespace
                     (format nil "Error: unknown command: \"ad\"
